@@ -1,0 +1,13 @@
+highway-env==1.12.1
+stable-baselines3==2.9.0
+torch>=2.9
+gymnasium>=1.0
+pygame>=2.5
+tensorboard>=2.16
+pandas>=2.0
+matplotlib>=3.8
+tqdm>=4.66
+rich>=13.0
+jupyterlab>=4.0
+ipykernel>=6.0
+nbconvert>=7.0
