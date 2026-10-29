@@ -1,3 +1,5 @@
+# NEW — highway adaptation layer, not in upstream (WocaR-RL/WocaR-DQN/SA-DQN).
+# Bridges highway-env (gymnasium, Kinematics obs, 5-tuple API) to SA-DQN's 4-value Atari API.
 import numpy as np
 
 

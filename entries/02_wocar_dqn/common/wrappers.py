@@ -1,3 +1,5 @@
+# PATCHED vs upstream/common/wrappers.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/common/wrappers.py)
+# Changes: gymnasium import compat, np_random.integers.
 import numpy as np
 from collections import deque
 try:

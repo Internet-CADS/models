@@ -1,9 +1,14 @@
+# PATCHED vs upstream/train.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/train.py)
+# Changes: optional auto_LiRPA/cpprb/Async* imports for CPU/portability, highway env branch
+# (LegacyHighwayEnv), worst_target_model fix, crash-rate tracking, torch device abstraction.
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
 
 import sys
 sys.path.append("./common")
 sys.path.append("./auto_LiRPA")
+# Fallback to upstream/ for deleted identical top-level modules (argparser, eps_scheduler, etc.)
+sys.path.append("./upstream")
 try:
     from auto_LiRPA import BoundedModule, BoundedTensor
     from auto_LiRPA.perturbations import PerturbationLpNorm

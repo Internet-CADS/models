@@ -1,3 +1,5 @@
+# PATCHED vs upstream/utils.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/utils.py)
+# Changes: optional IPython, CPU-portable CudaTensorManager pin_memory, update_target/get_cuda_tensors fixes.
 import math, random
 import numpy as np
 import torch

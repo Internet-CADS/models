@@ -1,3 +1,5 @@
+# PATCHED vs upstream/ibp.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/ibp.py)
+# Changes: CPU-portable worst_action_select (zeros_like, masked_fill, bool mask).
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

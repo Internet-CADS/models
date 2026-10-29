@@ -1,3 +1,5 @@
+# PATCHED vs upstream/my_replay_buffer.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN
+# Changes: gymnasium compat, dtype fixes for sample() returns.
 import math, random
 
 try:

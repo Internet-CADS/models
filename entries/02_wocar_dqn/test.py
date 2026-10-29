@@ -1,6 +1,9 @@
+# PATCHED vs upstream/test.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/test.py)
+# Changes: optional auto_LiRPA/AsyncEnv imports, LegacyHighwayEnv branch, render/until_crash, device handling.
 import sys
 sys.path.append("./common")
 sys.path.append("./auto_LiRPA")
+sys.path.append("./upstream")
 try:
     from auto_LiRPA import BoundedModule, BoundedTensor
     from auto_LiRPA.perturbations import PerturbationLpNorm

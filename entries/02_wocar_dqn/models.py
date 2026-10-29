@@ -1,3 +1,5 @@
+# PATCHED vs upstream/models.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/models.py)
+# Changes: optional auto_LiRPA imports, precise DQN BoundedModule IBP via BoundedTensor/PerturbationLpNorm.
 import torch
 import torch.nn as nn
 import torch.autograd as autograd
