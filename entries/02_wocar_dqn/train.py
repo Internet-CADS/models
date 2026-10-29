@@ -42,6 +42,10 @@ from utils import CudaTensorManager, ActEpsilonScheduler, BufferBetaScheduler, L
 from my_replay_buffer import ReplayBuffer, NaivePrioritizedBuffer
 from common.replay_buffer import PrioritizedReplayBuffer
 try:
+    from torch.utils.tensorboard import SummaryWriter
+except ImportError:
+    SummaryWriter = None
+try:
     from async_env import AsyncEnv
 except ImportError:
     AsyncEnv = None
@@ -643,6 +647,19 @@ def main(args):
     logger.log('Command line:', " ".join(sys.argv[:]))
     logger.log(args)
     logger.log(config)
+    # TensorBoard
+    tb_logdir = os.path.join(prefix, 'tensorboard')
+    writer = None
+    if SummaryWriter is not None:
+        try:
+            os.makedirs(tb_logdir, exist_ok=True)
+            writer = SummaryWriter(log_dir=tb_logdir)
+            logger.log(f'TensorBoard logdir: {tb_logdir}')
+        except Exception as e:
+            logger.log(f'TensorBoard init failed: {e}')
+            writer = None
+    else:
+        logger.log('TensorBoard not available (torch.utils.tensorboard missing) — pip install tensorboard')
 
     env_params = training_config['env_params']
     env_id = config['env_id']
@@ -849,7 +866,9 @@ def main(args):
 
     # initialize parameters in logging
     all_rewards = []
+    all_lengths = []
     episode_reward = 0
+    episode_length = 0
     act_epsilon = np.nan
     grad_norm = np.nan
     weights_norm = np.nan
@@ -993,13 +1012,20 @@ def main(args):
         t = time.time()
         state = next_state
         episode_reward += reward
+        episode_length += 1
         if done:
             if training_config['use_async_env']:
                 state = async_env.reset()
             else:
                 state = env.reset()
             all_rewards.append(episode_reward)
+            all_lengths.append(episode_length)
+            if writer is not None:
+                writer.add_scalar('episode/return', episode_reward, frame_idx)
+                writer.add_scalar('episode/length', episode_length, frame_idx)
+                # crash inferred from env info not available here; crash rate from mini_test below
             episode_reward = 0
+            episode_length = 0
         log_time('env_time', time.time() - t)
 
 
@@ -1065,6 +1091,19 @@ def main(args):
             period_start_time = time.time()
             log_time.print()
             log_time.clear()
+            if writer is not None and losses:
+                writer.add_scalar('train/loss_total', losses[-1], frame_idx)
+                writer.add_scalar('train/loss_td', td_losses[-1] if td_losses else np.nan, frame_idx)
+                writer.add_scalar('train/grad_norm', grad_norm, frame_idx)
+                writer.add_scalar('train/epsilon', eps, frame_idx)
+                writer.add_scalar('train/kappa', kappa if kappa is not None else np.nan, frame_idx)
+                writer.add_scalar('train/act_epsilon', act_epsilon, frame_idx)
+                if all_rewards:
+                    writer.add_scalar('train/avg_return_10', float(np.average(all_rewards[-10:])), frame_idx)
+                if all_lengths:
+                    writer.add_scalar('train/avg_length_10', float(np.average(all_lengths[-10:])), frame_idx)
+                if robust and reg_losses:
+                    writer.add_scalar('train/reg_loss', reg_losses[-1], frame_idx)
 
         if frame_idx % training_config['save_frame'] == 0 or frame_idx==num_frames:
             plot(frame_idx, all_rewards, losses, prefix)
@@ -1087,15 +1126,25 @@ def main(args):
             max_crash_rate = training_config.get('safety_max_crash_rate', 0.05)
             logger.log('this test avg reward: {:6g}, crash rate: {:.3f}, safety score: {:6g}, eligible: {}'.format(
                 test_reward, crash_rate, safety_score, crash_rate <= max_crash_rate))
+            if writer is not None:
+                writer.add_scalar('test/return', test_reward, frame_idx)
+                writer.add_scalar('test/crash_rate', crash_rate, frame_idx)
+                writer.add_scalar('test/safety_score', safety_score, frame_idx)
+                writer.add_scalar('test/length', training_config.get('mini_test_max_frames_per_episode', 1000), frame_idx)
             if crash_rate <= max_crash_rate and safety_score >= best_test_reward:
                 best_test_reward = safety_score
                 logger.log('new best safety score {:6g} achieved, update checkpoint'.format(safety_score))
                 torch.save(current_model.features.state_dict(), '{}/best_frame_{}.pth'.format(prefix, frame_idx))
+                if writer is not None:
+                    writer.add_scalar('test/best_safety_score', safety_score, frame_idx)
             elif crash_rate > max_crash_rate:
                 logger.log('checkpoint rejected: crash rate {:.3f} exceeds safety limit {:.3f}'.format(
                     crash_rate, max_crash_rate))
 
         log_time.log_time('total', time.time() - frame_start)
+    if writer is not None:
+        writer.close()
+        logger.log('TensorBoard writer closed')
 
 
 if __name__ == "__main__":

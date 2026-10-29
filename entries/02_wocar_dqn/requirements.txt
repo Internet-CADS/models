@@ -13,6 +13,7 @@ gym[atari]
 gpustat
 pygame
 highway-env
+tensorboard
 
 # posix_ipc and cpprb are optional for the asynchronous/optimized replay paths.
 # The vanilla highway baseline uses the synchronous Python replay buffer.
