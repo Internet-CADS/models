@@ -81,17 +81,22 @@ python entries\02_wocar_dqn\watch_progress.py
 
 ---
 
-## Post-Run Cleanup (Before Committing Artifacts)
-During the 4M-frame run, `train.py` saves checkpoints every `50,000` frames (`frame_50000.pth` ... `frame_4000000.pth`) and updates `best_frame_<N>.pth` whenever the 50-episode `mini_test` meets `crash_rate <= 0.10` with a new best `safety_score = test_reward - 5 * crash_rate`.
+## Post-Run Checkpoint Selection (Same as `2nd_run`)
+During the 4M-frame run, `train.py` runs a 50-episode `mini_test` every `50,000` frames and saves `frame_<N>.pth` (each `.pth` is only ~98 KB, so all 80 checkpoints take <8 MB total) as well as `best_frame_<N>.pth` whenever `safety_score = test_reward - 5 * crash_rate` reaches a new high.
 
-When training finishes (`frame 4000000/4000000` in `train.log`):
-1. Keep inside `artifacts/3rd_run/highway-v0_<model>/`:
-   - The highest `best_frame_<N>.pth` (and optionally the second-best checkpoint if desired)
-   - The final `frame_4000000.pth`, `frame_4000000_rewards.npy`, `frame_4000000_losses.npy`
+**Do NOT delete `frame_<N>.pth` files during training.** When training finishes (`frame 4000000/4000000` in `train.log`):
+1. Parse all `this test avg reward:` rows in `train.log` (just like `artifacts/2nd_run/README.md`) and identify the **top 3 checkpoints**:
+   - The checkpoint with the **lowest crash rate** (breaking ties by highest reward)
+   - The checkpoint with the **highest safety score** (`test_reward - 5 * crash_rate`)
+   - The **final checkpoint** (`frame_4000000.pth`)
+2. Keep inside `artifacts/3rd_run/highway-v0_<model>/`:
+   - Those top `frame_<N>.pth` checkpoints (and `best_frame_<N>.pth`)
+   - Their corresponding `frame_<N>_{rewards,losses}.npy` files
    - `rewards_losses_so_far.pdf`
    - `train.log` (note: `*.log` is in `.gitignore`, so use `git add -f` when staging `train.log`)
    - `tensorboard/` event file
-2. Delete intermediate `frame_<N>.pth` and `frame_<N>_{rewards,losses}.npy` files (for `N < 4000000` that are not the best checkpoint) so the repository stays small.
+   - A short `README.md` table (matching `artifacts/2nd_run/README.md`) listing the kept checkpoints and their `mini_test` reward, crash rate, and safety score.
+3. Only after verifying and recording the top checkpoints in `README.md`, remove the remaining unneeded intermediate `frame_<N>_losses.npy` / `frame_<N>_rewards.npy` / `frame_<N>.pth` files before committing to git.
 
 ## Agent Instructions
 1. Check with the user (or use **SA-DQN** `config_highway_sadqn.json` if on the Desktop and no model was specified) which of the 3 configs to run.

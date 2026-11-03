@@ -1142,15 +1142,13 @@ def main(args):
                 writer.add_scalar('test/crash_rate', crash_rate, frame_idx)
                 writer.add_scalar('test/safety_score', safety_score, frame_idx)
                 writer.add_scalar('test/length', training_config.get('mini_test_max_frames_per_episode', 1000), frame_idx)
-            if crash_rate <= max_crash_rate and safety_score >= best_test_reward:
+            if safety_score >= best_test_reward:
                 best_test_reward = safety_score
-                logger.log('new best safety score {:6g} achieved, update checkpoint'.format(safety_score))
+                logger.log('new best safety score {:6g} achieved (crash rate {:.3f}, eligible: {}), update checkpoint'.format(
+                    safety_score, crash_rate, crash_rate <= max_crash_rate))
                 torch.save(current_model.features.state_dict(), '{}/best_frame_{}.pth'.format(prefix, frame_idx))
                 if writer is not None:
                     writer.add_scalar('test/best_safety_score', safety_score, frame_idx)
-            elif crash_rate > max_crash_rate:
-                logger.log('checkpoint rejected: crash rate {:.3f} exceeds safety limit {:.3f}'.format(
-                    crash_rate, max_crash_rate))
 
         log_time.log_time('total', time.time() - frame_start)
     if writer is not None:
