@@ -23,7 +23,7 @@ TEST_RE = re.compile(
 def parse_log(log_path):
     if not os.path.isfile(log_path):
         return None
-    frame, total, eps_act = 0, 1500000, "1.0"
+    frame, total, eps_act = 0, 4000000, "1.0"
     elapsed, speed, avg10 = 0.0, 0.0, "nan"
     test_rew, crash, safety = "-", "-", "-"
 

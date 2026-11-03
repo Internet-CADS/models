@@ -6,7 +6,7 @@ Use this prompt to run one or more of the **3rd run** `highway-v0` models in `en
 The Q-network for `highway-v0` is a small 3-layer MLP (`50 -> 128 -> 128 -> 5`, ~23k parameters). On a discrete GPU, PCIe tensor transfers and tiny CUDA kernel launch overheads are slower than running the matrix math directly in CPU L1/L2 cache. Locking `OMP_NUM_THREADS=1` and `MKL_NUM_THREADS=1` avoids OpenMP multi-thread contention and allows running multiple models in parallel.
 
 ## Models & Output Folders in `entries/02_wocar_dqn/artifacts/3rd_run/`
-All three configs already set `"path_prefix": "artifacts/3rd_run"` and `"num_frames": 1500000`, so `train.py` automatically writes into the corresponding nested folder:
+All three configs already set `"path_prefix": "artifacts/3rd_run"` and `"num_frames": 4000000`, so `train.py` automatically writes into the corresponding nested folder:
 
 | Model | Config file | Output directory |
 |---|---|---|
@@ -82,19 +82,19 @@ python entries\02_wocar_dqn\watch_progress.py
 ---
 
 ## Post-Run Cleanup (Before Committing Artifacts)
-During the 1.5M-frame run, `train.py` saves checkpoints every `50,000` frames (`frame_50000.pth` ... `frame_1500000.pth`) and updates `best_frame_<N>.pth` whenever the 50-episode `mini_test` meets `crash_rate <= 0.10` with a new best `safety_score = test_reward - 5 * crash_rate`.
+During the 4M-frame run, `train.py` saves checkpoints every `50,000` frames (`frame_50000.pth` ... `frame_4000000.pth`) and updates `best_frame_<N>.pth` whenever the 50-episode `mini_test` meets `crash_rate <= 0.10` with a new best `safety_score = test_reward - 5 * crash_rate`.
 
-When training finishes (`frame 1500000/1500000` in `train.log`):
+When training finishes (`frame 4000000/4000000` in `train.log`):
 1. Keep inside `artifacts/3rd_run/highway-v0_<model>/`:
    - The highest `best_frame_<N>.pth` (and optionally the second-best checkpoint if desired)
-   - The final `frame_1500000.pth`, `frame_1500000_rewards.npy`, `frame_1500000_losses.npy`
+   - The final `frame_4000000.pth`, `frame_4000000_rewards.npy`, `frame_4000000_losses.npy`
    - `rewards_losses_so_far.pdf`
    - `train.log` (note: `*.log` is in `.gitignore`, so use `git add -f` when staging `train.log`)
    - `tensorboard/` event file
-2. Delete intermediate `frame_<N>.pth` and `frame_<N>_{rewards,losses}.npy` files (for `N < 1500000` that are not the best checkpoint) so the repository stays small.
+2. Delete intermediate `frame_<N>.pth` and `frame_<N>_{rewards,losses}.npy` files (for `N < 4000000` that are not the best checkpoint) so the repository stays small.
 
 ## Agent Instructions
 1. Check with the user (or use **SA-DQN** `config_highway_sadqn.json` if on the Desktop and no model was specified) which of the 3 configs to run.
 2. Ensure `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS="1"`, and `MKL_NUM_THREADS="1"` are set in the environment and `torch.cuda.is_available()` is `False`.
 3. Run `train.py` with the working directory set to `entries/02_wocar_dqn`.
-4. Monitor `entries/02_wocar_dqn/artifacts/3rd_run/highway-v0_<model>/train.log` until `frame 1500000/1500000` completes, then perform the post-run cleanup above.
+4. Monitor `entries/02_wocar_dqn/artifacts/3rd_run/highway-v0_<model>/train.log` until `frame 4000000/4000000` completes, then perform the post-run cleanup above.

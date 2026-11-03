@@ -1,6 +1,6 @@
-# 3rd run — Matched 1.5M-frame highway-v0 ablation (Vanilla DQN vs. SA-DQN vs. WocaR-DQN)
+# 3rd run — Matched 4M-frame highway-v0 ablation (Vanilla DQN vs. SA-DQN vs. WocaR-DQN)
 
-Each model is trained for `1,500,000` frames on the exact same `highway-v0` configuration (`seed: 1`, 4 lanes, 10 vehicles, 50-dim normalized `Kinematics`, `collision_reward: -2.0`, `normalize_reward: false`, `offroad_terminal: true`) after fixing the WocaR `bound_forward`, `worst_action_select`, state-importance weighting $w(s)$, and deterministic `mini_test` seeding bugs.
+Each model is trained for `4,000,000` frames on the exact same `highway-v0` configuration (`seed: 1`, 4 lanes, 10 vehicles, 50-dim normalized `Kinematics`, `collision_reward: -2.0`, `normalize_reward: false`, `offroad_terminal: true`) after fixing the WocaR `bound_forward`, `worst_action_select`, state-importance weighting $w(s)$, and deterministic `mini_test` seeding bugs.
 
 ## Folders
 

@@ -43,7 +43,7 @@
     "use_async_rb": false,
     "per": false,
     "cpprb": false,
-    "num_frames": 1500000,
+    "num_frames": 4000000,
     "batch_size": 64,
     "gamma": 0.99,
     "lr": 0.000125,
