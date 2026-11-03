@@ -96,7 +96,7 @@ During the 4M-frame run, `train.py` runs a 50-episode `mini_test` every `50,000`
    - `train.log` (note: `*.log` is in `.gitignore`, so use `git add -f` when staging `train.log`)
    - `tensorboard/` event file
    - A short `README.md` table (matching `artifacts/2nd_run/README.md`) listing the kept checkpoints and their `mini_test` reward, crash rate, and safety score.
-3. Only after verifying and recording the top checkpoints in `README.md`, remove the remaining unneeded intermediate `frame_<N>_losses.npy` / `frame_<N>_rewards.npy` / `frame_<N>.pth` files before committing to git.
+3. **Never delete any checkpoints or `.npy` files.** Instead, move the remaining intermediate `frame_<N>.pth` and `frame_<N>_{rewards,losses}.npy` files (the ones not kept in the repo for git commit) into a backup folder on the user's Desktop (`~/Desktop/wocar_3rd_run_backup/highway-v0_<model>/` on macOS, or `$HOME\Desktop\wocar_3rd_run_backup\highway-v0_<model>\` on Windows PowerShell) before committing to git, so nothing is ever lost.
 
 ## Agent Instructions
 1. Check with the user (or use **SA-DQN** `config_highway_sadqn.json` if on the Desktop and no model was specified) which of the 3 configs to run.
