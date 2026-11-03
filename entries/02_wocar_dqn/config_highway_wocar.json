@@ -32,11 +32,11 @@
     "load_model_path": "",
     "robust": true,
     "worst": true,
-    "worst_ratio": 0.01,
-    "worst_rate": 1000,
+    "worst_ratio": 0.1,
+    "worst_rate": 4,
     "worst_eps_end": 0.0025,
     "worst_schedule": 200000,
-    "worst_kappa_end": 0.9,
+    "worst_kappa_end": 1.0,
     "dueling": true,
     "bound_solver": "cov",
     "hinge": true,
@@ -78,7 +78,7 @@
     "mini_test": 50000,
     "mini_test_episodes": 50,
     "mini_test_max_frames_per_episode": 1000,
-    "safety_max_crash_rate": 0.05
+    "safety_max_crash_rate": 0.10
   },
   "test_config": {
     "load_model_path": "",
@@ -88,7 +88,7 @@
     "until_crash": false,
     "print_frame": 100,
     "save_frames": false,
-    "num_episodes": 10,
+    "num_episodes": 100,
     "max_frames_per_episode": 1000,
     "attack_config": {
       "method": "pgd",
@@ -96,8 +96,8 @@
       "params": {
         "epsilon": 0.0025,
         "niters": 10,
-        "img_min": -1.0,
-        "img_max": 1.0,
+        "img_min": -10.0,
+        "img_max": 10.0,
         "random_start": true
       }
     }
