@@ -66,6 +66,19 @@ CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 ../../.venv/bin/pyth
   --config config_highway_wocar.json
 ```
 
+## Live Progress Bar (Run in Another Terminal)
+Once one or more training runs have started, run `watch_progress.py` in a separate terminal to see live progress bars, FPS, ETA, and latest `mini_test` scores for all active runs in `artifacts/3rd_run/`:
+
+```bash
+# macOS / Linux (from repo root)
+python entries/02_wocar_dqn/watch_progress.py
+```
+
+```powershell
+# Windows PowerShell (from repo root)
+python entries\02_wocar_dqn\watch_progress.py
+```
+
 ---
 
 ## Post-Run Cleanup (Before Committing Artifacts)
