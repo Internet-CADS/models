@@ -1,6 +1,7 @@
 {
   "env_type": "highway",
   "env_id": "highway-v0",
+  "path_prefix": "artifacts/3rd_run",
   "name_suffix": "_sadqn",
   "env_config": {
     "lanes_count": 4,
@@ -49,7 +50,7 @@
     "grad_clip": 10,
     "natural_loss_fn": "huber",
     "adam_eps": 0.00015,
-    "save_frame": 10000,
+    "save_frame": 50000,
     "print_frame": 1000,
     "update_target_frame": 2000,
     "act_epsilon_start": 1.0,
