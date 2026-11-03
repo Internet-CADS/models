@@ -125,18 +125,19 @@ def main(args):
     all_rewards = []
     episode_reward = 0
 
-    seed = random.randint(0, sys.maxsize)
-    logger.log('reseting env with seed', seed)
-    env.seed(seed)
+    is_highway = config.get('env_type') == 'highway'
+    base_seed = test_config.get('seed', 0 if is_highway else random.randint(0, sys.maxsize))
+    episode_idx = 1
+    this_episode_frame = 1
+    ep_seed = base_seed if not is_highway else base_seed + episode_idx - 1
+    logger.log('reseting env with seed', ep_seed)
+    env.seed(ep_seed)
     state = env.reset()
     start_time = time.time()
     device = torch.device('cuda' if USE_CUDA else 'cpu')
     if training_config['use_async_env']:
         # Create an environment in a separate process, run asychronously
         async_env = AsyncEnv(env_id, result_path=prefix, draw=training_config['show_game'], record=training_config['record_game'], save_frames=test_config['save_frames'], env_params=env_params, seed=args.seed)
-
-    episode_idx = 1
-    this_episode_frame = 1
 
     if certify:
         certified = 0
@@ -218,17 +219,19 @@ def main(args):
                 logger.log('collision detected after {} frames in episode {}.'.format(
                     this_episode_frame, episode_idx))
                 break
-            logger.log('reseting env with seed', seed)
-            if training_config['use_async_env']:
-                state = async_env.reset()
-            else:
-                state = env.reset()
             all_rewards.append(episode_reward)
             episode_reward = 0
             this_episode_frame = 1
             episode_idx += 1
             if not until_crash and episode_idx > num_episodes:
                 break
+            ep_seed = base_seed if not is_highway else base_seed + episode_idx - 1
+            logger.log('reseting env with seed', ep_seed)
+            if training_config['use_async_env']:
+                state = async_env.reset()
+            else:
+                env.seed(ep_seed)
+                state = env.reset()
         else:
             this_episode_frame += 1
 

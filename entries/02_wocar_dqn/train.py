@@ -590,18 +590,19 @@ def mini_test(model, config, logger, dtype, num_episodes=10, max_frames_per_epis
         env = wrap_pytorch(env)
 
     # env = atari_env(env_id)
-    state = env.reset()
     all_rewards = []
     crashes = 0
     episode_reward = 0
     device = torch.device('cuda' if USE_CUDA else 'cpu')
 
-    seed = random.randint(0, sys.maxsize)
-    logger.log('reseting env with seed', seed)
-    env.seed(seed)
+    is_highway = config.get('env_type') == 'highway'
+    base_seed = training_config.get('mini_test_seed', 1000) if is_highway else random.randint(0, sys.maxsize)
+    episode_idx = 1
+    ep_seed = base_seed if not is_highway else base_seed + episode_idx - 1
+    logger.log('reseting env with seed', ep_seed)
+    env.seed(ep_seed)
     state = env.reset()
 
-    episode_idx = 1
     this_episode_frame = 1
     for frame_idx in range(1, num_episodes * max_frames_per_episode + 1):
         state_tensor = torch.from_numpy(np.ascontiguousarray(state)).unsqueeze(0).to(device=device, dtype=torch.float32)
@@ -620,8 +621,6 @@ def mini_test(model, config, logger, dtype, num_episodes=10, max_frames_per_epis
             done = True
 
         if done:
-            logger.log('reseting env with seed', seed)
-            state = env.reset()
             all_rewards.append(episode_reward)
             logger.log('episode {}/{} reward: {:6g}'.format(episode_idx, num_episodes, all_rewards[-1]))
             episode_reward = 0
@@ -629,6 +628,10 @@ def mini_test(model, config, logger, dtype, num_episodes=10, max_frames_per_epis
             episode_idx += 1
             if episode_idx > num_episodes:
                 break
+            ep_seed = base_seed if not is_highway else base_seed + episode_idx - 1
+            logger.log('reseting env with seed', ep_seed)
+            env.seed(ep_seed)
+            state = env.reset()
         else:
             this_episode_frame += 1
     crash_rate = crashes / max(len(all_rewards), 1)

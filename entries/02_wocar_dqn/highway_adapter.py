@@ -22,6 +22,7 @@ class LegacyHighwayEnv:
         self.action_space = self.env.action_space
         self._observation_space = self.env.observation_space
         self.observation_space = self._flatten_space(self._observation_space)
+        self._pending_seed = None
 
         if not hasattr(self.action_space, "n"):
             raise TypeError("The vanilla DQN baseline requires a discrete action space")
@@ -40,6 +41,9 @@ class LegacyHighwayEnv:
         return np.asarray(observation, dtype=np.float32).reshape(-1)
 
     def reset(self, **kwargs):
+        if "seed" not in kwargs and self._pending_seed is not None:
+            kwargs["seed"] = self._pending_seed
+        self._pending_seed = None
         result = self.env.reset(**kwargs)
         observation = result[0] if isinstance(result, tuple) else result
         return self._flatten_observation(observation)
@@ -58,7 +62,7 @@ class LegacyHighwayEnv:
     def seed(self, seed=None):
         if hasattr(self.env, "seed"):
             return self.env.seed(seed)
-        self.env.reset(seed=seed)
+        self._pending_seed = seed
         return [seed]
 
     def close(self):
