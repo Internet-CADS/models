@@ -1,5 +1,5 @@
 # PATCHED vs upstream/ibp.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/ibp.py)
-# Changes: CPU-portable worst_action_select (zeros_like, masked_fill, bool mask).
+# Changes: CPU-portable worst_action_select, >= bound comparison for eps=0, gather from unmasked worst_q so 1e9 cannot leak into Bellman targets.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -53,11 +53,16 @@ def worst_action_select(worst_q, upper_q, lower_q):
     mask = torch.zeros_like(upper_q, dtype=torch.bool)
     for i in range(upper_q.size()[1]):
         upper = upper_q[:, i].view(upper_q.size()[0], 1)
-        if_perturb = (upper > lower_q).all(1)
+        if_perturb = (upper >= lower_q).all(1)
         mask[:, i] = if_perturb
 
-    worst_q = worst_q.masked_fill(mask == 0, 1e9)
-    worst_actions = worst_q.min(1)[-1].unsqueeze(1)
+    empty_rows = ~mask.any(dim=1)
+    if empty_rows.any():
+        fallback_actions = upper_q.argmax(dim=1, keepdim=True)
+        mask.scatter_(1, fallback_actions, mask.gather(1, fallback_actions) | empty_rows.unsqueeze(1))
+
+    masked_worst_q = worst_q.masked_fill(~mask, float('inf'))
+    worst_actions = masked_worst_q.min(1)[-1].unsqueeze(1)
     worst_q = worst_q.gather(1, worst_actions).squeeze(1)
 
     return worst_q
