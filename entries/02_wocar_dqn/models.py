@@ -110,9 +110,8 @@ class QNetwork(nn.Module):
             identity = torch.eye(self.num_actions, device=x.device, dtype=x.dtype)
             specification = identity.unsqueeze(0).expand(x.size(0), -1, -1)
             self.features(bounded_input, method_opt='forward')
-            _, upper = self.features.compute_bounds(C=specification, IBP=True, method=None)
-            negative_lower, _ = self.features.compute_bounds(C=-specification, IBP=True, method=None)
-            return upper, -negative_lower
+            lower, upper = self.features.compute_bounds(C=specification, IBP=True, method=None)
+            return upper, lower
 
         upper = x + eps
         lower = x - eps
