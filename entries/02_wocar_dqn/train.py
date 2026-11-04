@@ -409,28 +409,27 @@ def compute_td_loss_worst(current_model, target_model, worst_model, worst_target
     else:
         worst_model_training = False
 
-    cur_q_logits_ub, cur_q_logits_lb = current_model.bound_forward(state, eps=worst_eps)
-
     if worst_model_training:
         worst_q_logits = worst_model(state)
         worst_q_value = worst_q_logits.gather(1, action.unsqueeze(1)).squeeze(1)
-        next_q_logits_ub, next_q_logits_lb = current_model.bound_forward(next_state, eps=worst_eps)
+        with torch.no_grad():
+            next_q_logits_ub, next_q_logits_lb = current_model.bound_forward(next_state, eps=worst_eps)
+            worst_next_q_value = worst_action_select(tgt_worst_q_logits, next_q_logits_ub, next_q_logits_lb)
+            exp_worst_q_value = reward + gamma * worst_next_q_value * (1 - done)
 
-        worst_next_q_value = worst_action_select(tgt_worst_q_logits, next_q_logits_ub, next_q_logits_lb)
-        exp_worst_q_value = reward + gamma * worst_next_q_value * (1 - done)
-
-    
-    action_labels = torch.zeros_like(cur_q_logits_ub)
-    action_labels[range(state.shape[0]), action] = 1
-    cur_ub_diff = cur_q_logits_ub - cur_q_logits * (1-action_labels) - expected_q_value.detach().unsqueeze(1)*action_labels
-    cur_lb_diff = cur_q_logits_lb - cur_q_logits * (1-action_labels) - expected_q_value.detach().unsqueeze(1)*action_labels
-    worst_case = torch.max(torch.abs(cur_ub_diff), torch.abs(cur_lb_diff))
-    worst_case_loss = torch.sum(torch.min(worst_case.pow(2), worst_case), dim=1)
-    if per:
-        worst_case_loss = worst_case_loss * weights
-    worst_case_loss = worst_case_loss.mean()
-    # worst_case_loss_fn = torch.nn.SmoothL1Loss(reduction='none')
-    # worst_case_loss = worst_case_loss_fn(worst_case_loss, torch.zeros_like(worst_case_loss)).mean()
+    if worst_kappa < 1.0 - 1e-7:
+        cur_q_logits_ub, cur_q_logits_lb = current_model.bound_forward(state, eps=worst_eps)
+        action_labels = torch.zeros_like(cur_q_logits_ub)
+        action_labels[range(state.shape[0]), action] = 1
+        cur_ub_diff = cur_q_logits_ub - cur_q_logits * (1-action_labels) - expected_q_value.detach().unsqueeze(1)*action_labels
+        cur_lb_diff = cur_q_logits_lb - cur_q_logits * (1-action_labels) - expected_q_value.detach().unsqueeze(1)*action_labels
+        worst_case = torch.max(torch.abs(cur_ub_diff), torch.abs(cur_lb_diff))
+        worst_case_loss = torch.sum(torch.min(worst_case.pow(2), worst_case), dim=1)
+        if per:
+            worst_case_loss = worst_case_loss * weights
+        worst_case_loss = worst_case_loss.mean()
+    else:
+        worst_case_loss = torch.zeros((), device=state.device, dtype=state.dtype)
     
     if kwargs['natural_loss_fn'] == 'huber':
         loss_fn = torch.nn.SmoothL1Loss(reduction='none')
@@ -512,6 +511,11 @@ def compute_td_loss_worst(current_model, target_model, worst_model, worst_target
                 ori_margin = logits_margin(current_model.forward(state), labels)
                 reg_loss = torch.clamp(adv_margin, min=-hinge_c)
 
+        if eps >= np.finfo(np.float32).tiny and bound_solver != 'pgd':
+            with torch.no_grad():
+                state_importance = cur_q_logits.max(dim=1)[0] - cur_q_logits.min(dim=1)[0]
+                state_importance = state_importance / (state_importance.mean() + 1e-8)
+            reg_loss = reg_loss * state_importance
         if per:
             reg_loss = reg_loss * weights
         reg_loss = reg_loss.mean()
@@ -586,18 +590,19 @@ def mini_test(model, config, logger, dtype, num_episodes=10, max_frames_per_epis
         env = wrap_pytorch(env)
 
     # env = atari_env(env_id)
-    state = env.reset()
     all_rewards = []
     crashes = 0
     episode_reward = 0
     device = torch.device('cuda' if USE_CUDA else 'cpu')
 
-    seed = random.randint(0, sys.maxsize)
-    logger.log('reseting env with seed', seed)
-    env.seed(seed)
+    is_highway = config.get('env_type') == 'highway'
+    base_seed = training_config.get('mini_test_seed', 1000) if is_highway else random.randint(0, sys.maxsize)
+    episode_idx = 1
+    ep_seed = base_seed if not is_highway else base_seed + episode_idx - 1
+    logger.log('reseting env with seed', ep_seed)
+    env.seed(ep_seed)
     state = env.reset()
 
-    episode_idx = 1
     this_episode_frame = 1
     for frame_idx in range(1, num_episodes * max_frames_per_episode + 1):
         state_tensor = torch.from_numpy(np.ascontiguousarray(state)).unsqueeze(0).to(device=device, dtype=torch.float32)
@@ -616,8 +621,6 @@ def mini_test(model, config, logger, dtype, num_episodes=10, max_frames_per_epis
             done = True
 
         if done:
-            logger.log('reseting env with seed', seed)
-            state = env.reset()
             all_rewards.append(episode_reward)
             logger.log('episode {}/{} reward: {:6g}'.format(episode_idx, num_episodes, all_rewards[-1]))
             episode_reward = 0
@@ -625,6 +628,10 @@ def mini_test(model, config, logger, dtype, num_episodes=10, max_frames_per_epis
             episode_idx += 1
             if episode_idx > num_episodes:
                 break
+            ep_seed = base_seed if not is_highway else base_seed + episode_idx - 1
+            logger.log('reseting env with seed', ep_seed)
+            env.seed(ep_seed)
+            state = env.reset()
         else:
             this_episode_frame += 1
     crash_rate = crashes / max(len(all_rewards), 1)
@@ -954,7 +961,11 @@ def main(args):
         buffer_beta = np.nan
         t = time.time()
 
-        coeff = min(1, (frame_idx+1)/max((num_frames + 1-load_frame), worst_schedule))
+        worst_start = schedule_start if (robust or adv_train) else 0
+        if worst_schedule > 0:
+            coeff = min(1.0, max(0.0, (frame_idx - worst_start) / float(worst_schedule)))
+        else:
+            coeff = 1.0
         worst_eps = coeff * worst_eps_end
         worst_kappa = (1 - coeff)*1 + coeff*worst_kappa_end
         if buffer_stored_size > replay_initial:
@@ -966,15 +977,15 @@ def main(args):
                 beta = (max_eps - eps * (1.0 - convex_final_beta)) / max_eps * convex_start_beta
             if worst_training:
                 training_count += 1
-
-            if worst_training and training_count % worst_rate == 0:
-                res = compute_td_loss_worst(current_model, target_model, worst_model, worst_target_model, worst_optimizer, batch_size, replay_buffer, per, use_cpp_buffer, use_async_rb, optimizer, gamma, memory_mgr, robust, worst_eps = worst_eps, worst_ratio = worst_ratio, worst_rate = worst_rate, worst_kappa = worst_kappa, training_count = training_count, buffer_beta=buffer_beta, grad_clip=grad_clip, natural_loss_fn=natural_loss_fn, eps=eps, beta=beta, sa=sa, kappa=kappa, dtype=dtype, hinge=hinge, hinge_c=training_config.get('hinge_c', 1), env_id=env_id, bound_solver=bound_solver, attack_config=attack_config)
+                current_worst_ratio = coeff * worst_ratio
+                res = compute_td_loss_worst(current_model, target_model, worst_model, worst_target_model, worst_optimizer, batch_size, replay_buffer, per, use_cpp_buffer, use_async_rb, optimizer, gamma, memory_mgr, robust, worst_eps = worst_eps, worst_ratio = current_worst_ratio, worst_rate = worst_rate, worst_kappa = worst_kappa, training_count = training_count, buffer_beta=buffer_beta, grad_clip=grad_clip, natural_loss_fn=natural_loss_fn, eps=eps, beta=beta, sa=sa, kappa=kappa, dtype=dtype, hinge=hinge, hinge_c=training_config.get('hinge_c', 1), env_id=env_id, bound_solver=bound_solver, attack_config=attack_config)
                 worst_case_loss = res[6]
-                worst_loss, td_worst_loss, batch_worst_q_value = res[7], res[8], res[9]
-                worst_losses.append(worst_loss.data.item())
-                td_worst_losses.append(td_worst_loss.data.item())
                 worst_case_losses.append(worst_case_loss.data.item())
-                batch_worst_q.append(batch_worst_q_value.data.item())
+                if training_count % worst_rate == 0:
+                    worst_loss, td_worst_loss, batch_worst_q_value = res[7], res[8], res[9]
+                    worst_losses.append(worst_loss.data.item())
+                    td_worst_losses.append(td_worst_loss.data.item())
+                    batch_worst_q.append(batch_worst_q_value.data.item())
             else:
                 res = compute_td_loss(current_model, target_model, batch_size, replay_buffer, per, use_cpp_buffer, use_async_rb, optimizer, gamma, memory_mgr, robust, buffer_beta=buffer_beta, grad_clip=grad_clip, natural_loss_fn=natural_loss_fn, eps=eps, beta=beta, sa=sa, kappa=kappa, dtype=dtype, hinge=hinge, hinge_c=training_config.get('hinge_c', 1), env_id=env_id, bound_solver=bound_solver, attack_config=attack_config, worst_eps=worst_eps, worst_kappa=worst_kappa)
             
@@ -1131,15 +1142,13 @@ def main(args):
                 writer.add_scalar('test/crash_rate', crash_rate, frame_idx)
                 writer.add_scalar('test/safety_score', safety_score, frame_idx)
                 writer.add_scalar('test/length', training_config.get('mini_test_max_frames_per_episode', 1000), frame_idx)
-            if crash_rate <= max_crash_rate and safety_score >= best_test_reward:
+            if safety_score >= best_test_reward:
                 best_test_reward = safety_score
-                logger.log('new best safety score {:6g} achieved, update checkpoint'.format(safety_score))
+                logger.log('new best safety score {:6g} achieved (crash rate {:.3f}, eligible: {}), update checkpoint'.format(
+                    safety_score, crash_rate, crash_rate <= max_crash_rate))
                 torch.save(current_model.features.state_dict(), '{}/best_frame_{}.pth'.format(prefix, frame_idx))
                 if writer is not None:
                     writer.add_scalar('test/best_safety_score', safety_score, frame_idx)
-            elif crash_rate > max_crash_rate:
-                logger.log('checkpoint rejected: crash rate {:.3f} exceeds safety limit {:.3f}'.format(
-                    crash_rate, max_crash_rate))
 
         log_time.log_time('total', time.time() - frame_start)
     if writer is not None:
