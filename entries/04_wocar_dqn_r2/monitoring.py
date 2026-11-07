@@ -11,7 +11,7 @@ it only polls the train.log files (incrementally, by byte offset) and never sign
 Display: 18 rows grouped vanilla_dqn / sa_dqn / wocar_dqn, each
     run  [####------]  %  frames / total  frames/sec (smoothed)  ETA  status      (queued|training|stalled|done|failed)
 Publishing: every --publish-minutes (default 15) and on exit, write PROGRESS.md and progress.json at the repo root
-and commit ONLY those two files (`git commit --only`); nothing is written or committed if the state is unchanged.
+and commit ONLY those two files (`git commit --only`), then push the branch to origin (`--no-push` to disable; a failed push is retried on the next publish). Nothing is written or committed if the state is unchanged.
 A pid lock in the git dir prevents two instances. Ctrl-C exits this script only and writes a final snapshot.
 """
 import argparse
@@ -209,12 +209,37 @@ def git(repo, *a):
     return subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True)
 
 
+PUSH = True   # set from --no-push in main()
+
+
+def sync_remote(repo):
+    """Push local commits to origin (when enabled). Never raises: a failed push is retried on the next publish."""
+    if not PUSH:
+        return ""
+    ahead = git(repo, "rev-list", "--count", "@{u}..HEAD")
+    if ahead.returncode != 0:
+        return " ; no upstream branch, not pushed"
+    n = ahead.stdout.strip()
+    if n == "0":
+        return ""
+    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")   # never block on a credential prompt in a background session
+    try:
+        p = subprocess.run(["git", "-C", str(repo), "push", "origin", "HEAD"],
+                           capture_output=True, text=True, env=env, timeout=180)
+    except subprocess.TimeoutExpired:
+        return " ; push timed out (retry on next publish)"
+    if p.returncode == 0:
+        return f" ; pushed {n} commit(s)"
+    tail = (p.stderr or p.stdout).strip().splitlines()
+    return f" ; push failed, retry on next publish: {tail[-1] if tail else p.returncode}"
+
+
 def publish(runs, header, lines, repo, last_sig, commit, force=False):
     stamp = time.strftime("%Y-%m-%d %H:%M:%S %z")
     snap = snapshot(runs, header, stamp)
     sig = signature(snap)
     if sig == last_sig and not force:
-        return last_sig, "unchanged, skipped"
+        return last_sig, "unchanged, skipped" + sync_remote(repo)
     md_path, js_path = repo / "PROGRESS.md", repo / "progress.json"
     md_path.write_text(markdown(runs, snap, lines), encoding="utf-8", newline="\n")
     js_path.write_text(json.dumps(snap, indent=2) + "\n", encoding="utf-8", newline="\n")
@@ -224,9 +249,11 @@ def publish(runs, header, lines, repo, last_sig, commit, force=False):
     if a.returncode != 0:
         return sig, f"written; git add failed: {a.stderr.strip()}"
     if git(repo, "diff", "--cached", "--quiet", "--", "PROGRESS.md", "progress.json").returncode == 0:
-        return sig, "written; nothing to commit"
+        return sig, "written; nothing to commit" + sync_remote(repo)
     c = git(repo, "commit", "--only", "-m", f"chore(progress): {stamp}", "--", "PROGRESS.md", "progress.json")
-    return sig, "committed" if c.returncode == 0 else f"written; commit failed: {(c.stderr or c.stdout).strip()}"
+    if c.returncode != 0:
+        return sig, f"written; commit failed: {(c.stderr or c.stdout).strip()}"
+    return sig, "committed" + sync_remote(repo)
 
 
 def pid_alive(pid):
@@ -276,7 +303,10 @@ def main():
     ap.add_argument("--no-commit", action="store_true", help="write progress files but never commit")
     ap.add_argument("--no-publish", action="store_true")
     ap.add_argument("--once", action="store_true", help="render and publish once, then exit")
+    ap.add_argument("--no-push", action="store_true", help="commit progress locally but never push")
     args = ap.parse_args()
+    global PUSH
+    PUSH = not args.no_push
     try:                       # the header uses a middle dot; never crash on a narrow console code page
         sys.stdout.reconfigure(errors="replace")
     except (AttributeError, ValueError):
