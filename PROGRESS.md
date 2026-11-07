@@ -1,16 +1,16 @@
 # Training progress
 
-_Generated 2026-11-07 14:27:26 +0100_
+_Generated 2026-11-07 14:42:27 +0100_
 
 ```text
-batch 1/3 · 0/18 runs done · elapsed 09:16
+batch 1/3 · 0/18 runs done · elapsed 09:31
 
-vanilla_dqn/model_1  [###############-----]  74.9%  2,997,000 / 4,000,000    94.2 f/s  ETA 02:57:32  training
-vanilla_dqn/model_2  [###############-----]  75.0%  3,000,000 / 4,000,000    93.4 f/s  ETA 02:58:26  training
-vanilla_dqn/model_3  [###############-----]  74.8%  2,990,000 / 4,000,000    93.0 f/s  ETA 03:00:55  training
-vanilla_dqn/model_4  [###############-----]  75.0%  3,002,000 / 4,000,000    84.2 f/s  ETA 03:17:36  training
-vanilla_dqn/model_5  [###############-----]  75.1%  3,003,000 / 4,000,000    85.9 f/s  ETA 03:13:26  training
-vanilla_dqn/model_6  [###############-----]  75.0%  3,000,000 / 4,000,000    93.4 f/s  ETA 02:58:25  training
+vanilla_dqn/model_1  [###############-----]  77.0%  3,078,000 / 4,000,000    93.0 f/s  ETA 02:45:09  training
+vanilla_dqn/model_2  [###############-----]  77.0%  3,081,000 / 4,000,000    92.7 f/s  ETA 02:45:10  training
+vanilla_dqn/model_3  [###############-----]  76.8%  3,070,000 / 4,000,000    92.5 f/s  ETA 02:47:34  training
+vanilla_dqn/model_4  [###############-----]  77.1%  3,084,000 / 4,000,000    92.7 f/s  ETA 02:44:45  training
+vanilla_dqn/model_5  [###############-----]  77.1%  3,086,000 / 4,000,000    93.4 f/s  ETA 02:43:05  training
+vanilla_dqn/model_6  [###############-----]  77.0%  3,082,000 / 4,000,000    93.2 f/s  ETA 02:44:14  training
 
 sa_dqn/model_1       [--------------------]   0.0%          0 / 4,000,000       - f/s  ETA --:--:--  queued
 sa_dqn/model_2       [--------------------]   0.0%          0 / 4,000,000       - f/s  ETA --:--:--  queued
@@ -29,12 +29,12 @@ wocar_dqn/model_6    [--------------------]   0.0%          0 / 4,000,000       
 
 | run | % | frames | rate (f/s) | ETA | status |
 |---|---:|---:|---:|---|---|
-| vanilla_dqn/model_1 | 74.9 | 2,997,000 / 4,000,000 | 94.16 | 02:57:32 | training |
-| vanilla_dqn/model_2 | 75.0 | 3,000,000 / 4,000,000 | 93.4 | 02:58:26 | training |
-| vanilla_dqn/model_3 | 74.8 | 2,990,000 / 4,000,000 | 93.04 | 03:00:55 | training |
-| vanilla_dqn/model_4 | 75.0 | 3,002,000 / 4,000,000 | 84.17 | 03:17:36 | training |
-| vanilla_dqn/model_5 | 75.1 | 3,003,000 / 4,000,000 | 85.9 | 03:13:26 | training |
-| vanilla_dqn/model_6 | 75.0 | 3,000,000 / 4,000,000 | 93.41 | 02:58:25 | training |
+| vanilla_dqn/model_1 | 77.0 | 3,078,000 / 4,000,000 | 93.04 | 02:45:09 | training |
+| vanilla_dqn/model_2 | 77.0 | 3,081,000 / 4,000,000 | 92.73 | 02:45:10 | training |
+| vanilla_dqn/model_3 | 76.8 | 3,070,000 / 4,000,000 | 92.5 | 02:47:34 | training |
+| vanilla_dqn/model_4 | 77.1 | 3,084,000 / 4,000,000 | 92.67 | 02:44:45 | training |
+| vanilla_dqn/model_5 | 77.2 | 3,086,000 / 4,000,000 | 93.4 | 02:43:05 | training |
+| vanilla_dqn/model_6 | 77.0 | 3,082,000 / 4,000,000 | 93.15 | 02:44:14 | training |
 | sa_dqn/model_1 | 0.0 | 0 / 4,000,000 | - | - | queued |
 | sa_dqn/model_2 | 0.0 | 0 / 4,000,000 | - | - | queued |
 | sa_dqn/model_3 | 0.0 | 0 / 4,000,000 | - | - | queued |
