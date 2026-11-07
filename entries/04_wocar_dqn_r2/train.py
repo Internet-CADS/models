@@ -879,7 +879,6 @@ def main(args):
     act_epsilon = np.nan
     grad_norm = np.nan
     weights_norm = np.nan
-    best_test_reward = -float('inf')
     buffer_stored_size = 0
     if adv_train:
         attack_count = 0
@@ -1133,22 +1132,11 @@ def main(args):
                 dtype,
                 num_episodes=training_config.get('mini_test_episodes', 50),
                 max_frames_per_episode=training_config.get('mini_test_max_frames_per_episode', 1000))
-            safety_score = test_reward - 5.0 * crash_rate
-            max_crash_rate = training_config.get('safety_max_crash_rate', 0.05)
-            logger.log('this test avg reward: {:6g}, crash rate: {:.3f}, safety score: {:6g}, eligible: {}'.format(
-                test_reward, crash_rate, safety_score, crash_rate <= max_crash_rate))
+            logger.log('this test avg reward: {:6g}, crash rate: {:.3f}'.format(test_reward, crash_rate))
             if writer is not None:
                 writer.add_scalar('test/return', test_reward, frame_idx)
                 writer.add_scalar('test/crash_rate', crash_rate, frame_idx)
-                writer.add_scalar('test/safety_score', safety_score, frame_idx)
                 writer.add_scalar('test/length', training_config.get('mini_test_max_frames_per_episode', 1000), frame_idx)
-            if safety_score >= best_test_reward:
-                best_test_reward = safety_score
-                logger.log('new best safety score {:6g} achieved (crash rate {:.3f}, eligible: {}), update checkpoint'.format(
-                    safety_score, crash_rate, crash_rate <= max_crash_rate))
-                torch.save(current_model.features.state_dict(), '{}/best_frame_{}.pth'.format(prefix, frame_idx))
-                if writer is not None:
-                    writer.add_scalar('test/best_safety_score', safety_score, frame_idx)
 
         log_time.log_time('total', time.time() - frame_start)
     if writer is not None:
