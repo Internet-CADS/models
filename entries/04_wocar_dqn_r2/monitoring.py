@@ -32,8 +32,9 @@ BAR_WIDTH = 20
 GROUPS = [("vanilla_dqn", "vanilla"), ("sa_dqn", "sadqn"), ("wocar_dqn", "wocar")]
 
 FRAME_RE = re.compile(r"^frame (\d+)/(\d+)")                                   # pinned to `frame N/M`
-SPEED_RE = re.compile(r"^total time:.*?speed:\s*([\d.]+)\s*frames/sec")
-SPEED_ALPHA = 0.2     # EMA weight for the per-1000-frame speed readings
+TIME_RE = re.compile(r"^total time:\s*([\d.]+)")                             # cumulative seconds since start
+SPEED_ALPHA = 0.2     # EMA weight for the rate samples
+MIN_RATE_FRAMES = 500 # only sample the rate over gaps of at least this many frames
 
 
 def repo_root(start):
@@ -65,6 +66,7 @@ class RunView:
         self.frame = 0
         self.total = target
         self.speed = None            # smoothed frames/sec
+        self.prev = None             # (frame, train.py total time) of the last rate sample
         self.mtime = None
         self.ctime = None
         self.err = None
@@ -83,7 +85,7 @@ class RunView:
         return found
 
     def _reset(self):
-        self.offset, self.partial, self.frame, self.speed = 0, "", 0, None
+        self.offset, self.partial, self.frame, self.speed, self.prev = 0, "", 0, None, None
         self.crashed, self.err_offset, self.total = False, 0, self.target
 
     def update(self, stall_seconds, now):
@@ -117,10 +119,18 @@ class RunView:
                     if m:
                         self.frame, self.total = int(m.group(1)), int(m.group(2))
                 elif line.startswith("total time:"):
-                    m = SPEED_RE.match(line)
+                    # Rate from (frame, cumulative time) deltas over >= MIN_RATE_FRAMES. train.py's own `speed:`
+                    # is print_frame/time_gap, which explodes on the extra frame lines it logs around
+                    # replay_initial and schedule_start (gaps of 1 frame), so it is not used.
+                    m = TIME_RE.match(line)
                     if m:
-                        v = float(m.group(1))
-                        self.speed = v if self.speed is None else SPEED_ALPHA * v + (1 - SPEED_ALPHA) * self.speed
+                        t = float(m.group(1))
+                        if self.prev is None or t < self.prev[1]:
+                            self.prev = (self.frame, t)
+                        elif self.frame - self.prev[0] >= MIN_RATE_FRAMES and t > self.prev[1]:
+                            v = (self.frame - self.prev[0]) / (t - self.prev[1])
+                            self.speed = v if self.speed is None else SPEED_ALPHA * v + (1 - SPEED_ALPHA) * self.speed
+                            self.prev = (self.frame, t)
         # tracebacks land in run.err (written by the orchestrator); scan only new bytes
         try:
             if self.err and self.err.is_file():
@@ -206,10 +216,21 @@ def markdown(runs, snap, lines):
 
 
 def git(repo, *a):
-    return subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True)
+    """git with a retry when the orchestrator holds .git/index.lock at the same moment."""
+    for attempt in range(10):
+        r = subprocess.run(["git", "-C", str(repo), *a], capture_output=True, text=True)
+        if r.returncode == 0 or "index.lock" not in (r.stderr or ""):
+            return r
+        time.sleep(3)
+    return r
 
 
-PUSH = True   # set from --no-push in main()
+def current_branch(repo):
+    return git(repo, "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+
+
+PUSH = True     # set from --no-push in main()
+BRANCH = None   # branch checked out when the monitor started; commits/pushes only happen on it
 
 
 def sync_remote(repo):
@@ -238,6 +259,8 @@ def publish(runs, header, lines, repo, last_sig, commit, force=False):
     stamp = time.strftime("%Y-%m-%d %H:%M:%S %z")
     snap = snapshot(runs, header, stamp)
     sig = signature(snap)
+    if commit and BRANCH and current_branch(repo) != BRANCH:
+        return last_sig, f"SKIPPED: branch is now '{current_branch(repo)}', monitor started on '{BRANCH}' (switch back)"
     if sig == last_sig and not force:
         return last_sig, "unchanged, skipped" + sync_remote(repo)
     md_path, js_path = repo / "PROGRESS.md", repo / "progress.json"
@@ -246,13 +269,13 @@ def publish(runs, header, lines, repo, last_sig, commit, force=False):
     if not commit:
         return sig, "written (commit disabled)"
     a = git(repo, "add", "--", "PROGRESS.md", "progress.json")
-    if a.returncode != 0:
-        return sig, f"written; git add failed: {a.stderr.strip()}"
+    if a.returncode != 0:                      # keep the old signature so the next publish retries
+        return last_sig, f"written; git add failed (will retry): {a.stderr.strip()}"
     if git(repo, "diff", "--cached", "--quiet", "--", "PROGRESS.md", "progress.json").returncode == 0:
         return sig, "written; nothing to commit" + sync_remote(repo)
     c = git(repo, "commit", "--only", "-m", f"chore(progress): {stamp}", "--", "PROGRESS.md", "progress.json")
-    if c.returncode != 0:
-        return sig, f"written; commit failed: {(c.stderr or c.stdout).strip()}"
+    if c.returncode != 0:                      # keep the old signature so the next publish retries
+        return last_sig, f"written; commit failed (will retry): {(c.stderr or c.stdout).strip()}"
     return sig, "committed" + sync_remote(repo)
 
 
@@ -305,8 +328,10 @@ def main():
     ap.add_argument("--once", action="store_true", help="render and publish once, then exit")
     ap.add_argument("--no-push", action="store_true", help="commit progress locally but never push")
     args = ap.parse_args()
-    global PUSH
-    PUSH = not args.no_push
+    global PUSH, BRANCH
+    if args.smoke:             # smoke mode never commits or pushes to the real repo
+        args.no_commit = True
+    PUSH = not args.no_push and not args.no_commit
     try:                       # the header uses a middle dot; never crash on a narrow console code page
         sys.stdout.reconfigure(errors="replace")
     except (AttributeError, ValueError):
@@ -318,6 +343,7 @@ def main():
         root = (Path.cwd() / root).resolve()
     repo = Path(args.repo_root).resolve() if args.repo_root else repo_root(ENTRY)
 
+    BRANCH = current_branch(repo)
     runs = [RunView(g, m, i, root, target) for g, m in GROUPS for i in range(1, N_RUNS + 1)]
     lock = acquire_lock(repo)
     if os.name == "nt":
