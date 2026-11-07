@@ -33,7 +33,7 @@ tmux new -s train
 ```
 Linux/macOS: use `.venv/bin/python` in place of `.venv\Scripts\python.exe`.
 
-Orchestrator prints only lifecycle events (launching, finished, failed, batch starts, summary). Monitoring is display-only and publishes `PROGRESS.md` + `progress.json` at the repo root every 15 minutes, committing only those two files.
+Orchestrator prints only lifecycle events (launching, finished, failed, batch starts, summary). Monitoring is display-only and publishes `PROGRESS.md` + `progress.json` at the repo root every 15 minutes, committing only those two files and then pushing the branch to `origin` (a failed push is retried on the next publish).
 
 Ctrl-C in the orchestrator leaves trainers running; use `--resume` to reattach. Ctrl-C in monitoring exits the monitor only.
 
@@ -46,7 +46,8 @@ Ctrl-C in the orchestrator leaves trainers running; use `--resume` to reattach. 
 ### Monitoring flags
 - `--smoke`: reads `artifacts/smoke/orch_flat/` with 3,000 frames.
 - `--publish-minutes M` (default 15), `--stall-minutes M` (default 30), `--refresh S` (default 2).
-- `--no-commit`: write progress files without committing. `--once`: render and publish once, then exit.
+- `--no-commit`: write progress files without committing (implies no push). `--no-push`: commit progress locally but do not push. `--once`: render and publish once, then exit.
+- Pushing: `git push origin HEAD` sends **all** local commits on `wocar_r2`, not only progress commits, so batch log commits from the orchestrator go out with the next progress push. Use `--no-push` if you want to push by hand.
 
 ## Commands to run first
 ```
