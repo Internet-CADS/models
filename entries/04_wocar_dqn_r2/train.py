@@ -287,7 +287,7 @@ def compute_td_loss(current_model, target_model, batch_size, replay_buffer, per,
     grad_norm = 0.0
     max_norm = kwargs['grad_clip']
     if max_norm > 0:
-        parameters = current_model.parameters()
+        parameters = list(current_model.parameters())  # list(): a generator would be exhausted by the norm loop, making the clip a no-op
         for p in parameters:
             grad_norm += p.grad.data.norm(2).item() ** 2
         grad_norm = np.sqrt(grad_norm)
@@ -530,7 +530,7 @@ def compute_td_loss_worst(current_model, target_model, worst_model, worst_target
     grad_norm = 0.0
     max_norm = kwargs['grad_clip']
     if max_norm > 0 and worst_model_training:
-        parameters = worst_model.parameters()
+        parameters = list(worst_model.parameters())  # list(): a generator would be exhausted by the norm loop, making the clip a no-op
         for p in parameters:
             grad_norm += p.grad.data.norm(2).item() ** 2
         grad_norm = np.sqrt(grad_norm)
@@ -541,7 +541,7 @@ def compute_td_loss_worst(current_model, target_model, worst_model, worst_target
 
     grad_norm = 0.0
     if max_norm > 0:
-        parameters = current_model.parameters()
+        parameters = list(current_model.parameters())  # list(): a generator would be exhausted by the norm loop, making the clip a no-op
         for p in parameters:
             grad_norm += p.grad.data.norm(2).item() ** 2
         grad_norm = np.sqrt(grad_norm)
