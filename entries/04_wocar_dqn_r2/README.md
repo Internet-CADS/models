@@ -39,12 +39,13 @@ Ctrl-C in the orchestrator leaves trainers running; use `--resume` to reattach. 
 
 ### Orchestrator flags
 - `--dry-run`: precreates the run folders, validates the configs and the `frame N/M` regex against a real `train.log`, prints every per-run command, launches nothing.
-- `--resume`: reattaches to live runs (log still growing) and skips runs already complete on disk.
+- `--resume`: kept for compatibility. On every start the orchestrator reattaches to live runs (log written in the last 10 min) and skips runs already complete on disk, so a restart never launches a batch on top of running trainers.
 - `--retry N`: retries a failed run N times into `model_<i>/retry_<k>/`. Existing logs are never overwritten.
 - `--smoke`: 3,000 frames per run into `artifacts/smoke/orch_flat/`. Use it to check the pipeline end to end before production.
 
 ### Monitoring flags
-- `--smoke`: reads `artifacts/smoke/orch_flat/` with 3,000 frames.
+- `--smoke`: reads `artifacts/smoke/orch_flat/` with 3,000 frames; never commits or pushes.
+- Commits and pushes only happen on the branch that was checked out when the monitor started (same for the orchestrator's batch commits); after a branch switch they are skipped with a warning.
 - `--publish-minutes M` (default 15), `--stall-minutes M` (default 30), `--refresh S` (default 2).
 - `--no-commit`: write progress files without committing (implies no push). `--no-push`: commit progress locally but do not push. `--once`: render and publish once, then exit.
 - Pushing: `git push origin HEAD` sends **all** local commits on `wocar_r2`, not only progress commits, so batch log commits from the orchestrator go out with the next progress push. Use `--no-push` if you want to push by hand.
@@ -61,7 +62,7 @@ Ctrl-C in the orchestrator leaves trainers running; use `--resume` to reattach. 
 
 ## Config keys touched in this rev
 - `path_prefix`: `artifacts/run_1` (was `artifacts/3rd_run`).
-- `flat_run_dir: true` (new, opt-in in `train.py`): run dir = `path_prefix` exactly, no `highway-v0_<suffix>` folder.
+- `flat_run_dir` (new, opt-in top-level key in `train.py`): when true, the run dir is `path_prefix` exactly, with no `highway-v0_<suffix>` folder. It is **not** set in the configs; `run_orchestrator.py` passes `flat_run_dir=true` on the command line, so a manual `train.py --config ...` keeps the default nested folders and models cannot overwrite each other.
 - `safety_max_crash_rate` removed; all `best_frame_*` saving removed.
 - Hyperparameters otherwise unchanged (verified against `agents/wocar_context.md` §3).
 

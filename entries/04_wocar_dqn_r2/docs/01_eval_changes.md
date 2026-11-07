@@ -11,7 +11,7 @@
 | `config_highway_{vanilla,sadqn,wocar}.json` | `training_config.safety_max_crash_rate` (0.10) | only consumer was the deleted `eligible` flag |
 
 ## Deleted (no stubs)
-All of the above. Net diff: `train.py` −10/+1 lines; each config −1 key (trailing comma on the preceding key removed, JSON re-validated). No other hyperparameter touched.
+All of the above. Net diff: `train.py` −13/+1 lines; each config −1 key (trailing comma on the preceding key removed, JSON re-validated). No other hyperparameter touched.
 
 ## Kept unchanged
 - `mini_test()` and its call (every `mini_test: 50000` frames, 50 episodes) — still returns `(reward, crash_rate)`.

@@ -9,7 +9,8 @@ Run from anywhere (paths resolve from this file), inside tmux, with the project 
 
 Layout (relative to this entry dir):
     artifacts/run_1/{vanilla_dqn,sa_dqn,wocar_dqn}/model_{1..6}/train.log   (+ frame_*.pth, tensorboard/, ...)
-(flat: the configs set `flat_run_dir: true`, so train.py writes straight into --path_prefix.)
+(flat: the orchestrator passes the `flat_run_dir=true` override, so train.py writes straight into --path_prefix.
+ A manual `train.py --config ...` without it keeps train.py's default <path_prefix>/highway-v0_<suffix>/ folders.)
 
 Rules: batch order vanilla_dqn -> sa_dqn -> wocar_dqn, 6 concurrent trainers max, TRAIN_SEED = model index (1..6).
 A run is FINISHED iff it exited 0 AND its train.log reached `frame <TARGET>/<TARGET>`; otherwise FAILED.
@@ -108,7 +109,7 @@ class Run:
 def build_cmd(run, args):
     prefix = os.path.relpath(run.prefix(), ENTRY)
     cmd = [args.python, "train.py", "--config", f"config_highway_{run.model}.json",
-           "--path_prefix", prefix, f"training_config:seed={run.idx}"]
+           "--path_prefix", prefix, "flat_run_dir=true", f"training_config:seed={run.idx}"]
     if args.target_frames != TARGET_FRAMES:   # only smoke/overridden runs touch num_frames
         cmd.append(f"training_config:num_frames={args.target_frames}")
     return cmd
@@ -153,7 +154,10 @@ def classify(run, args):
     if is_finished(lp, args.target_frames):
         run.state, run.note = "finished", "already complete on disk"
         event(f"run {run.name} already finished (log kept)")
-    elif args.resume and time.time() - lp.stat().st_mtime < ATTACH_STALE_SECONDS:
+    elif time.time() - lp.stat().st_mtime < ATTACH_STALE_SECONDS:
+        # A recently written log means a trainer is (very likely) still alive, e.g. after the orchestrator was
+        # restarted. Always reattach, with or without --resume: treating it as failed would start the next batch
+        # on top of it (12 trainers on 6 cores).
         run.state, run.note = "attached", "reattached to a live run via its log"
         event(f"run {run.name} reattached (log is growing)")
     else:
@@ -197,11 +201,28 @@ def poll(run, args):
 
 
 def git(*a):
-    return subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, text=True)
+    """git with a retry when monitoring.py holds .git/index.lock at the same moment."""
+    for attempt in range(10):
+        r = subprocess.run(["git", "-C", str(REPO), *a], capture_output=True, text=True)
+        if r.returncode == 0 or "index.lock" not in (r.stderr or ""):
+            return r
+        time.sleep(3)
+    return r
+
+
+def current_branch():
+    return git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+
+
+START_BRANCH = None   # set in main(); batch commits only happen on this branch
 
 
 def commit_batch(runs, key, args):
     """Commit this batch's train.log + tensorboard event files (and nothing else)."""
+    if START_BRANCH and current_branch() != START_BRANCH:
+        event(f"WARNING: batch {key} NOT committed: branch is now '{current_branch()}', orchestrator started on "
+              f"'{START_BRANCH}'. Switch back and rerun with --resume to commit it.")
+        return
     files = []
     for r in runs:
         lp = r.log_path()
@@ -301,7 +322,9 @@ def dry_run(runs_by_batch, args):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--dry-run", action="store_true", help="precreate folders, validate, print commands, launch nothing")
-    ap.add_argument("--resume", action="store_true", help="reattach to live runs / skip finished ones found on disk")
+    ap.add_argument("--resume", action="store_true",
+                    help="kept for compatibility: live runs (log written in the last 10 min) are now always reattached "
+                         "and finished runs always skipped")
     ap.add_argument("--smoke", action="store_true", help=f"{SMOKE_FRAMES} frames per run into artifacts/smoke/orch_flat")
     ap.add_argument("--retry", type=int, default=0, help="retries per failed run (new retry_<k> dir; default 0)")
     ap.add_argument("--run-root", help="override the run root (default artifacts/run_1, or artifacts/smoke/orch_flat with --smoke)")
@@ -324,8 +347,10 @@ def main():
     if args.dry_run:
         sys.exit(dry_run(runs_by_batch, args))
 
+    global START_BRANCH
+    START_BRANCH = current_branch()
     precreate(runs_by_batch)
-    event(f"orchestrator start: {len(BATCHES)} batches x {N_RUNS} runs, target {args.target_frames:,} frames, "
+    event(f"orchestrator start (branch {START_BRANCH}): {len(BATCHES)} batches x {N_RUNS} runs, target {args.target_frames:,} frames, "
           f"root {os.path.relpath(args.run_root, REPO)}")
     try:
         for n, ((key, _), runs) in enumerate(zip(BATCHES, runs_by_batch), 1):
