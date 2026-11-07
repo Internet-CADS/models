@@ -73,8 +73,7 @@
     "kappa": 0.001,
     "mini_test": 50000,
     "mini_test_episodes": 50,
-    "mini_test_max_frames_per_episode": 1000,
-    "safety_max_crash_rate": 0.10
+    "mini_test_max_frames_per_episode": 1000
   },
   "test_config": {
     "load_model_path": "",
