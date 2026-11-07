@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 
 ENTRY = Path(__file__).resolve().parent
-SMOKE = ENTRY / "artifacts" / "smoke"
+SMOKE = ENTRY / "artifacts" / "smoke" / "gate3_flat"   # flat layout; the original nested Gate 3 runs stay in artifacts/smoke/<model>/highway-v0_<model>/
 FRAMES = 60000
 SEED_FRAMES = 12000
 SEED = 1
@@ -38,7 +38,7 @@ MODELS = {"vanilla": "highway-v0_vanilla", "sadqn": "highway-v0_sadqn", "wocar":
 
 
 def run_dir(prefix: Path, model: str) -> Path:
-    return prefix / MODELS[model]
+    return prefix          # flat_run_dir: the configs make train.py write straight into --path_prefix
 
 
 def final_frame(log: Path):
