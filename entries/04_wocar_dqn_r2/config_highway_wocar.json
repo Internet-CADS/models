@@ -1,7 +1,8 @@
 {
   "env_type": "highway",
   "env_id": "highway-v0",
-  "path_prefix": "artifacts/3rd_run",
+  "path_prefix": "artifacts/run_1",
+  "flat_run_dir": true,
   "name_suffix": "_wocar",
   "env_config": {
     "lanes_count": 4,

@@ -47,3 +47,25 @@ SMOKE TEST: ALL PASS
 
 ## Open for Gate 4
 Run the three deferred criteria with `--smoke` (about 3k frames per run, lowered `TARGET_FRAMES`) once `run_orchestrator.py` and `monitoring.py` exist; append results here.
+
+## Gate 4 addendum: deferred criteria (orchestrator + monitoring)
+Run: `run_orchestrator.py --smoke` (3 batches x 6 runs, 3,000 frames each, `artifacts/smoke/orch/`) with `monitoring.py --smoke` polling alongside, publishing to a **throwaway scratch git repo** (`--repo-root`) so no test commits land on `wocar_r2`.
+
+| Criterion | Result |
+|---|---|
+| Batch transition vanilla -> sa -> wocar | PASS: batch 1 launched 04:29:42, each batch started only after all six runs finished or failed; 18/18 finished in ~2.5 min |
+| monitoring shows bars for the runs | PASS: 18 grouped rows, `queued -> training -> done` transitions observed; header `batch 3/3 · 18/18 runs done · elapsed 00:02` |
+| monitoring publishes PROGRESS.md + progress.json | PASS: 10 progress commits in the scratch repo (publish interval shortened to 18 s for the test) |
+| Progress commit touches only the progress files | PASS: every commit lists exactly `PROGRESS.md`, `progress.json`; a pre-staged `other.txt` and an untracked `scratch.txt` were not swept in |
+| Batch-log commit (`commit_batch`) | PASS (scratch repo, copies of the smoke logs): 12 files = 6 `train.log` + 6 TensorBoard event files, nothing else; second call is a no-op |
+
+Failure-path checks (scratch fakes): stalled (log 3 h old), failed (Traceback in `run.err`), queued, done and training rows all render correctly; a second monitor instance is refused while the first runs; a stale lock is reclaimed after the first is killed; the Ctrl-C path (simulated by an interrupt in the loop) wrote its final snapshot and removed the lock; a failing trainer with `--retry 1` retried into `model_<i>/retry_1/`, and a pre-existing incomplete `train.log` was left byte-for-byte intact.
+
+Known limits: the monitor's `failed` status comes from a Traceback in the per-run `run.err` that the orchestrator writes; a run that dies without one shows `stalled` after 30 minutes. A real console Ctrl-C was simulated, not typed.
+
+## Gate 4 addendum 2: flat run directories (user decision)
+Gate 3 and the first Gate 4 pass used `train.py`'s nested layout (`<path_prefix>/highway-v0_<suffix>/`). On request the layout is now flat: `artifacts/run_1/<model>/model_<i>/train.log` (+ `frame_*.pth`, `tensorboard/`).
+- **Code change (training code, opt-in):** `train.py` main(), new top-level config key `flat_run_dir`. When true, the run dir is exactly `path_prefix`; when absent/false the old `env_id + name_suffix` folder is used. The three configs set `flat_run_dir: true`. No hyperparameter or training logic touched.
+- **Scripts:** `run_orchestrator.py`, `monitoring.py`, `smoke_test.py` read/write `<run dir>/train.log` directly. `--smoke` root is now `artifacts/smoke/orch_flat`; `smoke_test.py` root is now `artifacts/smoke/gate3_flat`.
+- **Verification:** (1) vanilla, seed 1, 12,000 frames, flat (`artifacts/smoke/flatcheck/`): normalised `train.log` is **identical** (121 lines) to the earlier nested `seedcheck_a` run, so training is unchanged. (2) `run_orchestrator.py --smoke` on the flat layout: 3 batches x 6 runs, 18/18 finished (04:38:52 -> 04:41:32). (3) monitoring, failure paths and batch commit re-run on flat fakes/copies: same results as above.
+- Not re-run: the 60k-frame Gate 3 runs (training code identical apart from the output path). The original nested Gate 3 artifacts under `artifacts/smoke/<model>/highway-v0_<model>/`, `seedcheck_*` and `orch/` are kept as they were.

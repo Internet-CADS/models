@@ -640,12 +640,17 @@ def mini_test(model, config, logger, dtype, num_episodes=10, max_frames_per_epis
 
 def main(args):
     config = load_config(args)
-    prefix = config['env_id']
     training_config = config['training_config']
-    if config['name_suffix']:
-        prefix += config['name_suffix']
-    if config['path_prefix']:
-       prefix = os.path.join(config['path_prefix'], prefix)
+    if config.get('flat_run_dir', False):
+        # run dir is exactly path_prefix (no <env_id><name_suffix> sub-folder)
+        assert config['path_prefix'], "flat_run_dir requires a path_prefix"
+        prefix = config['path_prefix']
+    else:
+        prefix = config['env_id']
+        if config['name_suffix']:
+            prefix += config['name_suffix']
+        if config['path_prefix']:
+           prefix = os.path.join(config['path_prefix'], prefix)
     if not os.path.exists(prefix):
         os.makedirs(prefix)
 
