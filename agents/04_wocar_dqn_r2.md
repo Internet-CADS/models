@@ -34,7 +34,7 @@ Each model type is trained via its JSON config in the entry dir: **`config_highw
 | File | Why |
 |---|---|
 | `wocar_context.md` | Project context: three methods, configs, the 4 past bugs (§4 — do not reintroduce them) |
-| `/Users/frederikbach/Downloads/paper.pdf` | WocaR-RL paper (Liang et al., NeurIPS 2022): Algorithm 2 (WocaR-DQN, p. 19) + SA-DQN description for implementation verification |
+| `/agents/paper.pdf` | WocaR-RL paper (Liang et al., NeurIPS 2022): Algorithm 2 (WocaR-DQN, p. 19) + SA-DQN description for implementation verification |
 | The legacy 3rd-run runbook (user will paste/provide) | Operational details: cwd requirements, env vars, log format, checkpoint cadence, config invocation (`python train.py --config config_highway_<model>.json`) |
 
 ## Legacy runbook: keep vs. discard
