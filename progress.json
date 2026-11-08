@@ -1,6 +1,6 @@
 {
-  "generated": "2026-11-08 08:43:46 +0100",
-  "header": "batch 2/3 \u00b7 8/18 runs done \u00b7 elapsed 27:32",
+  "generated": "2026-11-08 08:58:48 +0100",
+  "header": "batch 3/3 \u00b7 12/18 runs done \u00b7 elapsed 27:47",
   "target_frames": 4000000,
   "runs": [
     {
@@ -79,37 +79,37 @@
       "run": "sa_dqn/model_1",
       "group": "sa_dqn",
       "model_index": 1,
-      "pct": 99.85,
-      "frames": 3994000,
+      "pct": 100.0,
+      "frames": 4000000,
       "total": 4000000,
-      "frames_per_sec": 82.17,
-      "eta_seconds": 73,
-      "eta": "00:01:13",
-      "status": "training"
+      "frames_per_sec": 83.79,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "done"
     },
     {
       "run": "sa_dqn/model_2",
       "group": "sa_dqn",
       "model_index": 2,
-      "pct": 98.32,
-      "frames": 3933000,
+      "pct": 100.0,
+      "frames": 4000000,
       "total": 4000000,
-      "frames_per_sec": 80.21,
-      "eta_seconds": 835,
-      "eta": "00:13:55",
-      "status": "training"
+      "frames_per_sec": 85.26,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "done"
     },
     {
       "run": "sa_dqn/model_3",
       "group": "sa_dqn",
       "model_index": 3,
-      "pct": 99.58,
-      "frames": 3983000,
+      "pct": 100.0,
+      "frames": 4000000,
       "total": 4000000,
-      "frames_per_sec": 81.8,
-      "eta_seconds": 207,
-      "eta": "00:03:27",
-      "status": "training"
+      "frames_per_sec": 85.43,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "done"
     },
     {
       "run": "sa_dqn/model_4",
@@ -139,85 +139,85 @@
       "run": "sa_dqn/model_6",
       "group": "sa_dqn",
       "model_index": 6,
-      "pct": 99.95,
-      "frames": 3998000,
+      "pct": 100.0,
+      "frames": 4000000,
       "total": 4000000,
-      "frames_per_sec": 81.92,
-      "eta_seconds": 24,
-      "eta": "00:00:24",
-      "status": "training"
+      "frames_per_sec": 82.37,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "done"
     },
     {
       "run": "wocar_dqn/model_1",
       "group": "wocar_dqn",
       "model_index": 1,
-      "pct": 0.0,
-      "frames": 0,
+      "pct": 0.12,
+      "frames": 5000,
       "total": 4000000,
-      "frames_per_sec": null,
-      "eta_seconds": null,
-      "eta": null,
-      "status": "queued"
+      "frames_per_sec": 80.78,
+      "eta_seconds": 49457,
+      "eta": "13:44:17",
+      "status": "training"
     },
     {
       "run": "wocar_dqn/model_2",
       "group": "wocar_dqn",
       "model_index": 2,
-      "pct": 0.0,
-      "frames": 0,
+      "pct": 0.12,
+      "frames": 5000,
       "total": 4000000,
-      "frames_per_sec": null,
-      "eta_seconds": null,
-      "eta": null,
-      "status": "queued"
+      "frames_per_sec": 80.2,
+      "eta_seconds": 49814,
+      "eta": "13:50:14",
+      "status": "training"
     },
     {
       "run": "wocar_dqn/model_3",
       "group": "wocar_dqn",
       "model_index": 3,
-      "pct": 0.0,
-      "frames": 0,
+      "pct": 0.12,
+      "frames": 5000,
       "total": 4000000,
-      "frames_per_sec": null,
-      "eta_seconds": null,
-      "eta": null,
-      "status": "queued"
+      "frames_per_sec": 81.5,
+      "eta_seconds": 49016,
+      "eta": "13:36:56",
+      "status": "training"
     },
     {
       "run": "wocar_dqn/model_4",
       "group": "wocar_dqn",
       "model_index": 4,
-      "pct": 0.0,
-      "frames": 0,
+      "pct": 0.12,
+      "frames": 5000,
       "total": 4000000,
-      "frames_per_sec": null,
-      "eta_seconds": null,
-      "eta": null,
-      "status": "queued"
+      "frames_per_sec": 80.09,
+      "eta_seconds": 49883,
+      "eta": "13:51:23",
+      "status": "training"
     },
     {
       "run": "wocar_dqn/model_5",
       "group": "wocar_dqn",
       "model_index": 5,
-      "pct": 0.0,
-      "frames": 0,
+      "pct": 0.12,
+      "frames": 5000,
       "total": 4000000,
-      "frames_per_sec": null,
-      "eta_seconds": null,
-      "eta": null,
-      "status": "queued"
+      "frames_per_sec": 79.77,
+      "eta_seconds": 50081,
+      "eta": "13:54:41",
+      "status": "training"
     },
     {
       "run": "wocar_dqn/model_6",
       "group": "wocar_dqn",
       "model_index": 6,
-      "pct": 0.0,
-      "frames": 0,
+      "pct": 0.12,
+      "frames": 5000,
       "total": 4000000,
-      "frames_per_sec": null,
-      "eta_seconds": null,
-      "eta": null,
-      "status": "queued"
+      "frames_per_sec": 81.06,
+      "eta_seconds": 49283,
+      "eta": "13:41:23",
+      "status": "training"
     }
   ]
 }
