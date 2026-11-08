@@ -34,7 +34,7 @@ The dry run must end with `DRY RUN OK`.
 ```
 python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent --no-commit
 ```
-All nine runs start together, whatever the core count (with fewer than nine cores each run is slower, but total throughput is about the same; roughly total core-hours / cores, e.g. 10–13 h on 6 cores — an estimate).
+All nine runs start together. The desktop has 6 cores / 12 threads and every run uses one thread (`OMP_NUM_THREADS=1`), so all nine fit on separate threads; in rev2 six runs used only about half the CPU. Some runs will share a physical core, so each run is probably somewhat slower than in rev2 (typically 15–30% for this kind of load; not measured here); expect roughly 8–11 h in total (an estimate, versus ~20 h for three sequential batches). A few minutes after the start, look at the `speed:` value in a `train.log` and tell the user (rev2 at six concurrent runs: about 93 / 77 / 72 frames/s for vanilla / SA-DQN / WocaR).
 Monitor in a second terminal: `python entries/05_wocar_dqn_r3/monitoring.py --no-commit` (writes `entries/05_wocar_dqn_r3/PROGRESS.md`, not the repo-root file).
 Runs land in `entries/05_wocar_dqn_r3/artifacts/run_1/<vanilla_dqn|sa_dqn|wocar_dqn>/model_<1..3>/`. If the machine or shell restarts, run the same command again: it reattaches to live runs and skips finished ones.
 
@@ -42,7 +42,7 @@ Runs land in `entries/05_wocar_dqn_r3/artifacts/run_1/<vanilla_dqn|sa_dqn|wocar_
 When the orchestrator summary says `9/9 runs finished`:
 ```
 cd entries/05_wocar_dqn_r3
-python evaluate.py artifacts/run_1 --workers <number of cores, at most 6>
+python evaluate.py artifacts/run_1 --workers 9        # one single-threaded job per run; lower it if other programs are using the CPU
 python report.py artifacts/run_1
 ```
 This evaluates the final checkpoint (frame 2,000,000) of every run, the same frame for all runs and with no checkpoint selection: PGD and worst-Q at ε 0, 0.0025, 0.005, 0.0075, 0.01, 100 episodes, plus certification. Output: `artifacts/run_1/report.html`.

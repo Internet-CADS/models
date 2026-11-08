@@ -27,10 +27,10 @@ Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREA
 Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scripts\python.exe`, macOS/Linux: `.venv/bin/python`).
 ```
 1) python entries/05_wocar_dqn_r3/run_orchestrator.py                 # window 1: launches the 9 runs (3 per batch, batches one after another)
-   python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 9 at once (needs ≥ 9 free cores)
+   python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 9 at once (one thread each; fits a 6-core / 12-thread CPU)
 2) python entries/05_wocar_dqn_r3/monitoring.py                       # window 2: live bars + PROGRESS.md/progress.json (in this folder)
 ```
-Rough wall time from rev2 speeds (vanilla ~93, SA ~77, WocaR ~72 frames/s at 6 concurrent): vanilla ≈ 6 h, SA-DQN ≈ 7 h, WocaR ≈ 8 h per run. Sequential batches ≈ 20 h, `--concurrent` ≈ 8–10 h. The denser traffic may be somewhat slower.
+Rough wall time from rev2 speeds (vanilla ~93, SA ~77, WocaR ~72 frames/s at 6 concurrent): vanilla ≈ 6 h, SA-DQN ≈ 7 h, WocaR ≈ 8 h per run. Sequential batches ≈ 20 h; `--concurrent` ≈ 8–11 h (runs sharing a physical core via hyperthreading are somewhat slower; estimate).
 
 Orchestrator flags: `--dry-run`, `--resume` (reattach / skip finished; always on), `--retry N`, `--smoke` (3k frames into `artifacts/smoke/orch_flat`),
 `--groups a,b`, `--seeds 1,2`, `--concurrent`, `--target-frames N`, `--run-root DIR`, `--no-commit`.
