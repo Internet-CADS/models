@@ -14,8 +14,8 @@ is a copy of r2's code; `artifacts/` and the notebook were not copied).
 | Training epsilon | 0.0025 | 0.005 | `epsilon` | sadqn, wocar |
 | kappa | 0.001 | 0.02 | `kappa` | sadqn, wocar |
 | Epsilon ramp | frames 50k–250k | 100k–600k | `schedule_start`, `schedule_length` | sadqn, wocar |
-| Worst-critic mixing ratio | 0.1 | 0.3 | `worst_ratio` | wocar |
-| Worst epsilon end | 0.0025 | 0.005 | `worst_eps_end` | wocar |
+| Worst-critic mixing ratio | 0.1 | 0.1 (ramped with the eps ramp; authors use 0.01–0.1, RA-DQN 0.05 constant) | `worst_ratio` | wocar |
+| Worst epsilon end (bound radius of the worst critic) | 0.0025 | 0.001 (RA-DQN uses a fixed 1e-3) | `worst_eps_end` | wocar |
 | Worst ramp length | 200k | 1,000,000 | `worst_schedule` | wocar |
 | Worst-case loss weight (`worst_kappa_end`) | 1.0 (off) | 0.5 | `worst_kappa_end` | wocar |
 
@@ -25,7 +25,7 @@ Notes
 - Checkpoint and mini-test interval stay at 50,000 (unchanged from r2), so the final checkpoint `frame_2000000.pth` is also the last mini-test. 40 checkpoints per run.
 - Episode length (60) is not aligned with frames on purpose: crashes end episodes early, so training episodes vary in length.
 - Planned gates: pilot of 1 seed vanilla + SA-DQN at ~600k frames (commands in README); watch `cert reg loss` falling after the ramp; if WocaR's
-  worst-Q diverges or clean return collapses by ~400k, restart that run with `worst_kappa_end = 0.9` (or `worst_ratio = 0`).
+  worst-Q diverges or clean return collapses by ~400k, restart that run with `worst_kappa_end = 1.0` (upstream README advice).
 - Evaluation scripts were adapted for r3: `evaluate.py` defaults to seeds 1–3, `--frames final` (2,000,000, `--final-frame` overrides), epsilons 0/0.0025/0.005/0.0075/0.01, attacks PGD + worst-Q;
   `report.py` uses `TRAIN_EPS = 0.005`, 2M frames, 3 seeds, shows the final-checkpoint robustness section first and skips attacks that were not evaluated.
   Fixed along the way: `evaluate.py` crashed (after finishing the job) when the run folder was outside the entry dir.

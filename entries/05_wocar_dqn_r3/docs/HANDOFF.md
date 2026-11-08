@@ -15,10 +15,10 @@ Read `README.md` (how to run), `docs/REV3.md` (every change vs rev2 and why). Th
 - Reward definition unchanged. Lanes unchanged (y-normalisation depends on lane count, so ε keeps its physical meaning).
 - 2,000,000 frames, save/mini-test interval 50,000 (final checkpoint = last mini-test). Episode length 60 is deliberately **not** aligned with frames (crashes end episodes early).
 - 3 seeds per group. Evaluate the final frame of every run; no checkpoint selection (the peak-of-mean frame is shown for information only).
-- Worst-case loss (`worst_kappa_end`) is on at 0.5 for WocaR: it is not one of the paper's three mechanisms but is used in upstream's published Atari configs (0.1–0.9); the README warns of instability. Guard: restart a diverging run with 0.9 or `worst_ratio` 0.
+- Worst-case loss (`worst_kappa_end`) is on at 0.5 for WocaR: it is not one of the paper's three mechanisms but is used in upstream's published Atari configs (0.1–0.9); the README warns of instability. Guard: restart a diverging run with `worst_kappa_end` 1.0 (upstream README advice). Update after reading RA-DQN (`WocaR-DQN/RA-DQN` in the WocaR-RL repo): worst_kappa_end 0.5 matches its default; `worst_ratio` lowered to 0.1 and `worst_eps_end` to 0.001 to match the authors' values (see `docs/DEVIATIONS.md`).
 
 ## Open items / next steps
-1. Run the pilot described in the README (vanilla + SA-DQN, seed 1, 600k frames) and decide go / no-go for the full run; adjust `vehicles_count` if vanilla's clean crash rate is very high.
+1. Run the pilot described in the README (vanilla + SA-DQN + WocaR, seed 1, 600k frames) and decide go / no-go for the full run; adjust `vehicles_count` if vanilla's clean crash rate is very high.
 2. Launch the full run (`run_orchestrator.py`, optionally `--concurrent`; `monitoring.py` in a second window). Check the training gates in the README around 400k and 600k frames.
 3. After training: `evaluate.py`, `report.py`, and compare vanilla vs SA-DQN vs WocaR at ε = 0.005 (training) and 0.01.
 4. `worst_ratio` / `worst_eps` / `worst_kappa` ramp together from `schedule_start`; a delayed worst-critic ramp (as in the paper: off for the first third) needs a `train.py` change if wanted.

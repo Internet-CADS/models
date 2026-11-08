@@ -16,23 +16,23 @@ Status: prepared and smoke-tested, **nothing has been trained yet**. Production 
 | WocaR-DQN | `config_highway_wocar.json` | `artifacts/run_1/wocar_dqn/model_{1..3}/` |
 
 Key settings (full table in `docs/REV3.md`): env = 25 other vehicles (obs shows 10 nearest), 60-step episodes; robust runs use ε = 0.005, κ = 0.02,
-ε ramp over frames 100k–600k; WocaR additionally `worst_ratio` 0.3, `worst_kappa_end` 0.5 (worst-case loss **on**), `worst_schedule` 1,000,000.
+ε ramp over frames 100k–600k; WocaR additionally `worst_ratio` 0.1, `worst_eps_end` 0.001, `worst_kappa_end` 0.5 (worst-case loss **on**, RA-DQN default), `worst_schedule` 1,000,000.
 Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, cwd = this folder.
 
 ## Recommended order (compute is limited)
 1. **Dry run** (no training): `python run_orchestrator.py --dry-run`
-2. **Pilot** (≈2 h, 2 runs in parallel): vanilla + SA-DQN, seed 1, 600k frames, kept out of `run_1`:
+2. **Pilot** (≈3–4 h, 3 runs in parallel): vanilla + SA-DQN + WocaR, seed 1, 600k frames, kept out of `run_1`:
    ```
-   python run_orchestrator.py --groups vanilla_dqn,sa_dqn --seeds 1 --concurrent --target-frames 600000 --run-root artifacts/pilot --no-commit
-   python evaluate.py artifacts/pilot --seeds 1 --final-frame 600000 --groups vanilla_dqn,sa_dqn --episodes 100
+   python run_orchestrator.py --groups vanilla_dqn,sa_dqn,wocar_dqn --seeds 1 --concurrent --target-frames 600000 --run-root artifacts/pilot --no-commit
+   python evaluate.py artifacts/pilot --seeds 1 --final-frame 600000 --episodes 100
    python report.py artifacts/pilot
    ```
-   Go ahead with the full run only if SA-DQN's crash rate under PGD / worst-Q at ε = 0.005 and 0.01 is clearly below vanilla's (well beyond seed noise).
+   Go ahead with the full run only if SA-DQN's **or** WocaR's crash rate under PGD / worst-Q at ε = 0.005 and 0.01 is clearly below vanilla's (at least ~10 percentage points; one seed cannot show significance).
    Also look at vanilla's **clean** crash rate in `train.log` / the report: if it is very high (say > 40 %), the traffic is probably too dense; lower `env_config.vehicles_count` (try 18) in all three configs.
 3. **Full run**, then evaluate (below).
 
 Gates while training (check `train.log`): after the ε ramp ends (~600k) `last cert reg loss` should fall well below the 1–2 it sat at in rev2;
-for WocaR watch `avg batch worst q` (rev2 drifted to −300) and clean return; if either collapses by ~400k frames, restart that run with `worst_kappa_end` 0.9 (or `worst_ratio` 0) and note it in `docs/REV3.md`.
+for WocaR watch `avg batch worst q` (rev2 drifted to −300) and clean return; if either collapses by ~400k frames, restart that run with `worst_kappa_end` 1.0 (the upstream README's advice) and note it in `docs/REV3.md`.
 
 ## Launch (production)
 Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scripts\python.exe`, macOS/Linux: `.venv/bin/python`).
