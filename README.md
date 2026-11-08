@@ -23,12 +23,3 @@ Branches: `wocar_r2` is rev2 (the training machine's monitor pushes progress com
 | `docs/rev3.md` | every rev3 change, status, decisions and next steps |
 | `docs/deviations.md` | where our setup differs from the paper and the authors' code, and the paper's notation slips |
 | `PROGRESS.md`, `progress.json` | written by rev2's training monitor; do not edit |
-
-## Running things
-```bash
-source .venv/bin/activate        # repo venv (Python 3.14 here; see requirements.txt and each entry's requirements)
-```
-- Notebook entries (01, 02): `jupyter lab entries/01_highway_dqn/01_highway_dqn.ipynb`; generated files go next to the notebook in `artifacts/`.
-- WocaR entries (03–05): run scripts from inside the entry folder (they use relative `./common`, `./auto_LiRPA`, `./upstream`); see that entry's `README.md`.
-
-Rules of thumb: nothing under any `artifacts/` folder is deleted or moved by scripts; commit explicit paths only.
