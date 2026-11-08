@@ -11,7 +11,7 @@ In the commands below `python` means the repo venv's interpreter (Windows: `.ven
 - Never delete or move anything under any `artifacts/` folder. Never edit `train.py`, `upstream/` or the configs.
 - Do not touch `main`. **Never force-push anything.**
 - Commit with explicit paths only (never `git add -A` / `git add .`). Keep LF line endings. Commit trailer: `Co-Authored-By: <your model name> <noreply@anthropic.com>`.
-- **Do not push unless the user tells you to**, with one exception: the user has authorised exactly the git operations in Step 1 (push `wocar_r3`, delete the branch `wocar_r2`). Any other push needs the user's go-ahead; at the end say what is committed and what is left to push.
+- **Do not push unless the user tells you to**, with two exceptions the user has authorised: the git operations in Step 1 (push `wocar_r3`, delete the branch `wocar_r2`), and the monitor's automatic progress commits/pushes during the run (Step 3). Any other push needs the user's go-ahead; at the end say what is committed and what is left to push.
 - Do not kill or restart training runs on your own. If something fails or looks wrong, stop and report it to the user.
 
 ## Step 0 — rev2 must be finished
@@ -63,11 +63,11 @@ The dry run must end with `DRY RUN OK`.
 python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent --no-commit
 ```
 All twelve runs start together. The desktop has 6 cores / 12 threads and every run uses one thread (`OMP_NUM_THREADS=1`), so the twelve runs use every thread and every physical core carries two runs (rev2's six runs used only about half the CPU). Each run is therefore probably slower than in rev2 (typically 15–30% for this kind of load; not measured here); expect roughly 9–12 h in total (an estimate, versus ~28 h for three sequential batches of four). The machine will be fully loaded, so avoid other heavy programs. A few minutes after the start, look at the `speed:` value in a `train.log` and tell the user (rev2 at six concurrent runs: about 93 / 77 / 72 frames/s for vanilla / SA-DQN / WocaR).
-Monitor in a second terminal: `python entries/05_wocar_dqn_r3/monitoring.py --no-commit` (writes `entries/05_wocar_dqn_r3/PROGRESS.md`, not the repo-root file).
+Start the monitor in a second terminal: `python entries/05_wocar_dqn_r3/monitoring.py`. Every 15 minutes it writes `entries/05_wocar_dqn_r3/PROGRESS.md` and `progress.json` (not the repo-root files), commits **only those two files** and pushes `wocar_r3` (these progress pushes are authorised). If a push is rejected because the remote branch moved (the user may push from another machine), the monitor rebases onto it and retries by itself; if that ever fails it aborts cleanly and tries again at the next publish. Leave it running until all 12 runs are done. Note that its push sends every commit that exists locally on `wocar_r3` at that moment.
 Runs land in `entries/05_wocar_dqn_r3/artifacts/run_1/<vanilla_dqn|sa_dqn|wocar_dqn>/model_<1..4>/`. If the machine or shell restarts, run the same command again: it reattaches to live runs and skips finished ones.
 
 ## Step 4 — evaluate and report
-When the orchestrator summary says `12/12 runs finished`:
+When the orchestrator summary says `12/12 runs finished`, first stop the monitor (Ctrl-C; it writes a final snapshot) so that nothing pushes automatically from here on, then:
 ```
 cd entries/05_wocar_dqn_r3
 python evaluate.py artifacts/run_1 --workers 12       # one single-threaded job per run; lower it if other programs are using the CPU

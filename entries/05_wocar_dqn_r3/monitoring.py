@@ -251,7 +251,26 @@ def sync_remote(repo):
         return " ; push timed out (retry on next publish)"
     if p.returncode == 0:
         return f" ; pushed {n} commit(s)"
-    tail = (p.stderr or p.stdout).strip().splitlines()
+    out = (p.stderr or p.stdout)
+    tail = out.strip().splitlines()
+    if any(k in out for k in ("non-fast-forward", "fetch first", "rejected")):
+        # The remote branch has commits we do not have (e.g. pushed from another machine): rebase onto it and push again.
+        branch = current_branch(repo)
+        try:
+            r = subprocess.run(["git", "-C", str(repo), "pull", "--rebase", "--autostash", "origin", branch],
+                               capture_output=True, text=True, env=env, timeout=180)
+            if r.returncode != 0:
+                subprocess.run(["git", "-C", str(repo), "rebase", "--abort"], capture_output=True, text=True, env=env, timeout=60)
+                rt = (r.stderr or r.stdout).strip().splitlines()
+                return f" ; push rejected, rebase failed and was aborted (retry on next publish): {rt[-1] if rt else r.returncode}"
+            p = subprocess.run(["git", "-C", str(repo), "push", "origin", "HEAD"],
+                               capture_output=True, text=True, env=env, timeout=180)
+        except subprocess.TimeoutExpired:
+            subprocess.run(["git", "-C", str(repo), "rebase", "--abort"], capture_output=True, text=True, env=env, timeout=60)
+            return " ; rebase/push timed out (retry on next publish)"
+        if p.returncode == 0:
+            return f" ; pushed {n} commit(s) after rebasing onto origin/{branch}"
+        tail = (p.stderr or p.stdout).strip().splitlines()
     return f" ; push failed, retry on next publish: {tail[-1] if tail else p.returncode}"
 
 

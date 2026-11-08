@@ -35,7 +35,7 @@ Rough wall time from rev2 speeds (vanilla ~93, SA ~77, WocaR ~72 frames/s at 6 c
 Orchestrator flags: `--dry-run`, `--resume` (reattach / skip finished; always on), `--retry N`, `--smoke` (3k frames into `artifacts/smoke/orch_flat`),
 `--groups a,b`, `--seeds 1,2`, `--concurrent`, `--target-frames N`, `--run-root DIR`, `--no-commit`.
 **By default the orchestrator commits each batch's `train.log` + TensorBoard files and the monitor commits/pushes `entries/05_wocar_dqn_r3/PROGRESS.md` + `progress.json` (not the repo-root files of rev2; `--progress-dir` overrides) on the branch checked out at start**
-(`--no-commit` / `--no-push` to disable; `git push origin HEAD` sends every local commit on the branch). Checkpoints and `.npy` files are never committed by the scripts.
+(`--no-commit` / `--no-push` to disable; `git push origin HEAD` sends every local commit on the branch; if the push is rejected because the remote moved, the monitor rebases onto the remote branch and retries, and aborts the rebase cleanly if that conflicts). Checkpoints and `.npy` files are never committed by the scripts.
 Monitoring flags: `--smoke`, `--publish-minutes M`, `--stall-minutes M`, `--refresh S`, `--no-commit`, `--no-push`, `--once`.
 
 ## Evaluate
