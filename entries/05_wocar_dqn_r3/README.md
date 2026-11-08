@@ -26,6 +26,7 @@ Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREA
    python run_orchestrator.py --groups vanilla_dqn,sa_dqn,wocar_dqn --seeds 1 --concurrent --target-frames 600000 --run-root artifacts/pilot --no-commit
    python evaluate.py artifacts/pilot --seeds 1 --final-frame 600000 --episodes 100
    python report.py artifacts/pilot
+   python pilot_gate.py artifacts/pilot        # prints the table and a GO / NO-GO verdict (exit code 0 = GO)
    ```
    Go ahead with the full run only if SA-DQN's **or** WocaR's crash rate under PGD / worst-Q at ε = 0.005 and 0.01 is clearly below vanilla's (at least ~10 percentage points; one seed cannot show significance).
    Also look at vanilla's **clean** crash rate in `train.log` / the report: if it is very high (say > 40 %), the traffic is probably too dense; lower `env_config.vehicles_count` (try 18) in all three configs.
