@@ -7,13 +7,13 @@ This folder is a copy of `04_wocar_dqn_r2` (code) with changed configs; see `../
 Status: prepared and smoke-tested, **nothing has been trained yet**. Production runs are started by you (see Launch).
 
 ## What runs
-9 runs: 3 model types × 3 seeds, 2,000,000 frames each, checkpoint + mini-test every 50,000 frames (40 each).
+12 runs: 3 model types × 4 seeds, 2,000,000 frames each, checkpoint + mini-test every 50,000 frames (40 each).
 
 | model | config | run dirs |
 |---|---|---|
-| vanilla DQN | `config_highway_vanilla.json` | `artifacts/run_1/vanilla_dqn/model_{1..3}/` |
-| SA-DQN | `config_highway_sadqn.json` | `artifacts/run_1/sa_dqn/model_{1..3}/` |
-| WocaR-DQN | `config_highway_wocar.json` | `artifacts/run_1/wocar_dqn/model_{1..3}/` |
+| vanilla DQN | `config_highway_vanilla.json` | `artifacts/run_1/vanilla_dqn/model_{1..4}/` |
+| SA-DQN | `config_highway_sadqn.json` | `artifacts/run_1/sa_dqn/model_{1..4}/` |
+| WocaR-DQN | `config_highway_wocar.json` | `artifacts/run_1/wocar_dqn/model_{1..4}/` |
 
 Key settings (full table in `../../docs/rev3.md`): env = 25 other vehicles (obs shows 10 nearest), 60-step episodes; robust runs use ε = 0.005, κ = 0.02,
 ε ramp over frames 100k–600k; WocaR additionally `worst_ratio` 0.1, `worst_eps_end` 0.001, `worst_kappa_end` 0.5 (worst-case loss **on**, RA-DQN default), `worst_schedule` 1,000,000.
@@ -26,11 +26,11 @@ Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREA
 ## Launch (production)
 Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scripts\python.exe`, macOS/Linux: `.venv/bin/python`).
 ```
-1) python entries/05_wocar_dqn_r3/run_orchestrator.py                 # window 1: launches the 9 runs (3 per batch, batches one after another)
-   python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 9 at once (one thread each; fits a 6-core / 12-thread CPU)
+1) python entries/05_wocar_dqn_r3/run_orchestrator.py                 # window 1: launches the 12 runs (4 per batch, batches one after another)
+   python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 12 at once (one thread each; uses all 12 threads of a 6-core CPU)
 2) python entries/05_wocar_dqn_r3/monitoring.py                       # window 2: live bars + PROGRESS.md/progress.json (in this folder)
 ```
-Rough wall time from rev2 speeds (vanilla ~93, SA ~77, WocaR ~72 frames/s at 6 concurrent): vanilla ≈ 6 h, SA-DQN ≈ 7 h, WocaR ≈ 8 h per run. Sequential batches ≈ 20 h; `--concurrent` ≈ 8–11 h (runs sharing a physical core via hyperthreading are somewhat slower; estimate).
+Rough wall time from rev2 speeds (vanilla ~93, SA ~77, WocaR ~72 frames/s at 6 concurrent): vanilla ≈ 6 h, SA-DQN ≈ 7 h, WocaR ≈ 8 h per run. Sequential batches ≈ 20 h; `--concurrent` ≈ 9–12 h (with 12 runs every physical core carries two runs via hyperthreading, so each run is slower than in rev2; estimate).
 
 Orchestrator flags: `--dry-run`, `--resume` (reattach / skip finished; always on), `--retry N`, `--smoke` (3k frames into `artifacts/smoke/orch_flat`),
 `--groups a,b`, `--seeds 1,2`, `--concurrent`, `--target-frames N`, `--run-root DIR`, `--no-commit`.
@@ -41,7 +41,7 @@ Monitoring flags: `--smoke`, `--publish-minutes M`, `--stall-minutes M`, `--refr
 ## Evaluate
 From this folder, with the repo venv. Evaluation uses the **same frame for every run** (final = 2,000,000), no checkpoint selection.
 ```
-python evaluate.py artifacts/run_1 --workers 6      # defaults: seeds 1-3, frame 2M, 100 episodes, PGD + worst-Q, eps 0/0.0025/0.005/0.0075/0.01, certification
+python evaluate.py artifacts/run_1 --workers 6      # defaults: seeds 1-4, frame 2M, 100 episodes, PGD + worst-Q, eps 0/0.0025/0.005/0.0075/0.01, certification
 python report.py artifacts/run_1                    # -> artifacts/run_1/report.html: mini-test curves per group + robustness section
 python visualize_perturbation.py -o perturbation.html   # model-free view of what epsilon means (reads eps/env from config_highway_sadqn.json)
 ```

@@ -246,7 +246,7 @@ def main():
     ap.add_argument("--attacks", default=",".join(DEFAULT_ATTACKS))
     ap.add_argument("--no-certify", action="store_true")
     ap.add_argument("--groups", default=",".join(GROUP_CONFIG))
-    ap.add_argument("--seeds", default="1,2,3")
+    ap.add_argument("--seeds", default="1,2,3,4")
     ap.add_argument("--frames", default="final", help="comma list of: final (2M), peak, or integer frames")
     ap.add_argument("--final-frame", type=int, default=FINAL_FRAME, help="frame meant by 'final' (default 2,000,000; use e.g. 600000 for a pilot)")
     ap.add_argument("--workers", type=int, default=4)

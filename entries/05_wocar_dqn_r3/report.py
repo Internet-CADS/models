@@ -110,7 +110,7 @@ ATTACKS = [("random_linf", "Random L-inf noise"), ("pgd", "10-step PGD"),
            ("minbest", "MinBest"), ("worst_q", "Worst-action (min-Q) PGD")]
 TRAIN_EPS = 0.005          # rev3 training epsilon (config_highway_sadqn/wocar.json)
 TOTAL_FRAMES = 2_000_000  # rev3 training length
-EXPECTED_SEEDS = 3        # runs per group in rev3
+EXPECTED_SEEDS = 4        # runs per group in rev3
 
 
 def load_eval(cache_dir):

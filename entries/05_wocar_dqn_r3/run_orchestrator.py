@@ -2,19 +2,19 @@
 """run_orchestrator.py - launch and sequence the rev3 training runs (launching only; no display).
 
 Run from anywhere (paths resolve from this file), inside tmux, with the project venv python:
-    python entries/05_wocar_dqn_r3/run_orchestrator.py              # production: 3 batches x 3 runs (one batch after another), 2M frames
-    python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent # same 9 runs, all started at once
+    python entries/05_wocar_dqn_r3/run_orchestrator.py              # production: 3 batches x 4 runs (one batch after another), 2M frames
+    python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent # same 12 runs, all started at once
     python entries/05_wocar_dqn_r3/run_orchestrator.py --groups vanilla_dqn,sa_dqn --seeds 1 --target-frames 600000 --run-root artifacts/pilot --no-commit   # pilot
     python entries/05_wocar_dqn_r3/run_orchestrator.py --dry-run    # precreate dirs, validate, print commands, launch nothing
-    python entries/05_wocar_dqn_r3/run_orchestrator.py --smoke      # 3 batches x 3 runs, 3k frames, artifacts/smoke/orch_flat
+    python entries/05_wocar_dqn_r3/run_orchestrator.py --smoke      # 3 batches x 4 runs, 3k frames, artifacts/smoke/orch_flat
     python entries/05_wocar_dqn_r3/run_orchestrator.py --resume     # reattach to / skip runs found on disk
 
 Layout (relative to this entry dir):
-    artifacts/run_1/{vanilla_dqn,sa_dqn,wocar_dqn}/model_{1..3}/train.log   (+ frame_*.pth, tensorboard/, ...)
+    artifacts/run_1/{vanilla_dqn,sa_dqn,wocar_dqn}/model_{1..4}/train.log   (+ frame_*.pth, tensorboard/, ...)
 (flat: the orchestrator passes the `flat_run_dir=true` override, so train.py writes straight into --path_prefix.
  A manual `train.py --config ...` without it keeps train.py's default <path_prefix>/highway-v0_<suffix>/ folders.)
 
-Rules: batch order vanilla_dqn -> sa_dqn -> wocar_dqn (unless --concurrent), TRAIN_SEED = model index (1..3).
+Rules: batch order vanilla_dqn -> sa_dqn -> wocar_dqn (unless --concurrent), TRAIN_SEED = model index (1..4).
 A run is FINISHED iff it exited 0 AND its train.log reached `frame <TARGET>/<TARGET>`; otherwise FAILED.
 train.py opens train.log with mode "w", so an existing train.log is NEVER launched into again: a retry goes to
 model_<i>/retry_<k>/ and the old log is kept. Nothing is ever deleted or moved. Standard library only.
@@ -32,7 +32,7 @@ from pathlib import Path
 ENTRY = Path(__file__).resolve().parent
 TARGET_FRAMES = 2_000_000   # rev3: 40 x 50,000 (save/mini_test interval)
 SMOKE_FRAMES = 3_000
-N_RUNS = 3            # seeds per group; without --concurrent also the number of concurrent trainers
+N_RUNS = 4            # seeds per group; without --concurrent also the number of concurrent trainers
 POLL_SECONDS = 10
 ATTACH_STALE_SECONDS = 600   # --resume: an incomplete log not written for this long is treated as dead
 

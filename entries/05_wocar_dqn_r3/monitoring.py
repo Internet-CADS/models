@@ -8,7 +8,7 @@ it only polls the train.log files (incrementally, by byte offset) and never sign
     python entries/05_wocar_dqn_r3/monitoring.py --smoke         # artifacts/smoke/orch_flat, 3k frames
     python entries/05_wocar_dqn_r3/monitoring.py --once          # render + publish once, exit
 
-Display: 9 rows grouped vanilla_dqn / sa_dqn / wocar_dqn, each
+Display: 12 rows grouped vanilla_dqn / sa_dqn / wocar_dqn, each
     run  [####------]  %  frames / total  frames/sec (smoothed)  ETA  status      (queued|training|stalled|done|failed)
 Publishing: every --publish-minutes (default 15) and on exit, write PROGRESS.md and progress.json into this entry folder
 (rev3: NOT the repo root, which rev2's monitor owns; --progress-dir overrides) and commit ONLY those two files (`git commit --only`), then push the branch to origin (`--no-push` to disable; a failed push is retried on the next publish). Nothing is written or committed if the state is unchanged.
@@ -26,7 +26,7 @@ from pathlib import Path
 ENTRY = Path(__file__).resolve().parent
 TARGET_FRAMES = 2_000_000
 SMOKE_FRAMES = 3_000
-N_RUNS = 3
+N_RUNS = 4
 BAR_WIDTH = 20
 
 GROUPS = [("vanilla_dqn", "vanilla"), ("sa_dqn", "sadqn"), ("wocar_dqn", "wocar")]

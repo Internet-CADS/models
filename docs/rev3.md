@@ -8,7 +8,7 @@ is a copy of r2's code; `artifacts/` and the notebook were not copied).
 | Setting | r2 | r3 | Config key | Files |
 |---|---|---|---|---|
 | Training frames | 4,000,000 | 2,000,000 (40 × 50,000) | `num_frames` | all |
-| Seeds per group | 6 | 3 | `N_RUNS` in `run_orchestrator.py` | — |
+| Seeds per group | 6 | 4 (12 single-threaded runs fill the desktop's 12 threads) | `N_RUNS` in `run_orchestrator.py` | — |
 | Other vehicles (env) | 10 | 25 | `env_config.vehicles_count` (observation still shows the 10 nearest) | all |
 | Episode length | 40 | 60 | `env_config.duration` | all |
 | Training epsilon | 0.0025 | 0.005 | `epsilon` | sadqn, wocar |
@@ -24,10 +24,10 @@ Notes
   They therefore start with the epsilon ramp (frame 100k) and reach their end values at frame 1.1M.
 - Checkpoint and mini-test interval stay at 50,000 (unchanged from r2), so the final checkpoint `frame_2000000.pth` is also the last mini-test. 40 checkpoints per run.
 - Episode length (60) is not aligned with frames on purpose: crashes end episodes early, so training episodes vary in length.
-- Evaluation scripts were adapted for r3: `evaluate.py` defaults to seeds 1–3, `--frames final` (2,000,000, `--final-frame` overrides), epsilons 0/0.0025/0.005/0.0075/0.01, attacks PGD + worst-Q;
-  `report.py` uses `TRAIN_EPS = 0.005`, 2M frames, 3 seeds, shows the final-checkpoint robustness section first and skips attacks that were not evaluated.
+- Evaluation scripts were adapted for r3: `evaluate.py` defaults to seeds 1–4, `--frames final` (2,000,000, `--final-frame` overrides), epsilons 0/0.0025/0.005/0.0075/0.01, attacks PGD + worst-Q;
+  `report.py` uses `TRAIN_EPS = 0.005`, 2M frames, 4 seeds, shows the final-checkpoint robustness section first and skips attacks that were not evaluated.
   Fixed along the way: `evaluate.py` crashed (after finishing the job) when the run folder was outside the entry dir.
-- Launcher additions: `run_orchestrator.py --groups --seeds --concurrent`; `monitoring.py` uses 9 runs × 2M frames. `smoke_test.py` (rev2 gate tooling) was not copied.
+- Launcher additions: `run_orchestrator.py --groups --seeds --concurrent`; `monitoring.py` uses 12 runs × 2M frames. `smoke_test.py` (rev2 gate tooling) was not copied.
 
 ## Status (prepared, not yet trained)
 - Committed on branch `wocar_r3`. Folder = copy of the r2 code with 3 changed configs, 9-run launcher/monitor constants, new orchestrator flags (`--groups --seeds --concurrent`), and rev3 defaults in `evaluate.py` / `report.py`.
@@ -38,12 +38,12 @@ Notes
 ## Decisions already made (do not relitigate without the user)
 - Reward definition unchanged; lanes unchanged (ε keeps its physical meaning through the y-normalisation).
 - 2,000,000 frames, checkpoint + mini-test every 50,000 (final checkpoint = last mini-test); episode length 60 is deliberately not aligned with frames (crashes end episodes early).
-- 3 seeds per group; evaluate the final frame of every run, no checkpoint selection (the peak-of-mean frame is information only).
+- 4 seeds per group (12 runs = all 12 threads of the desktop; costs some speed per run); evaluate the final frame of every run, no checkpoint selection (the peak-of-mean frame is information only).
 - WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `deviations.md`.
 
 ## Next steps
 1. Make sure the rev2 runs on the training machine are finished; the machine pulls `wocar_r3`.
-2. Full run: `run_orchestrator.py --concurrent` (all 9 runs at once), `monitoring.py` in a second window. Then `evaluate.py` and `report.py`, and look at the results. Step-by-step: `r3_agent_runbook.md`.
+2. Full run: `run_orchestrator.py --concurrent` (all 12 runs at once), `monitoring.py` in a second window. Then `evaluate.py` and `report.py`, and look at the results. Step-by-step: `r3_agent_runbook.md`.
 3. Ideas if the results show no gap (the user decides): κ 0.05; one SA-DQN run with `bound_solver: pgd`; if WocaR diverges, `worst_kappa_end` 1.0 (upstream README advice). Deferred: Double DQN.
 
 ## Rules carried over from the user
