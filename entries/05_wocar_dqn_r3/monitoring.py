@@ -10,8 +10,8 @@ it only polls the train.log files (incrementally, by byte offset) and never sign
 
 Display: 9 rows grouped vanilla_dqn / sa_dqn / wocar_dqn, each
     run  [####------]  %  frames / total  frames/sec (smoothed)  ETA  status      (queued|training|stalled|done|failed)
-Publishing: every --publish-minutes (default 15) and on exit, write PROGRESS.md and progress.json at the repo root
-and commit ONLY those two files (`git commit --only`), then push the branch to origin (`--no-push` to disable; a failed push is retried on the next publish). Nothing is written or committed if the state is unchanged.
+Publishing: every --publish-minutes (default 15) and on exit, write PROGRESS.md and progress.json into this entry folder
+(rev3: NOT the repo root, which rev2's monitor owns; --progress-dir overrides) and commit ONLY those two files (`git commit --only`), then push the branch to origin (`--no-push` to disable; a failed push is retried on the next publish). Nothing is written or committed if the state is unchanged.
 A pid lock in the git dir prevents two instances. Ctrl-C exits this script only and writes a final snapshot.
 """
 import argparse
@@ -255,7 +255,7 @@ def sync_remote(repo):
     return f" ; push failed, retry on next publish: {tail[-1] if tail else p.returncode}"
 
 
-def publish(runs, header, lines, repo, last_sig, commit, force=False):
+def publish(runs, header, lines, repo, last_sig, commit, force=False, out_dir=None):
     stamp = time.strftime("%Y-%m-%d %H:%M:%S %z")
     snap = snapshot(runs, header, stamp)
     sig = signature(snap)
@@ -263,17 +263,20 @@ def publish(runs, header, lines, repo, last_sig, commit, force=False):
         return last_sig, f"SKIPPED: branch is now '{current_branch(repo)}', monitor started on '{BRANCH}' (switch back)"
     if sig == last_sig and not force:
         return last_sig, "unchanged, skipped" + sync_remote(repo)
-    md_path, js_path = repo / "PROGRESS.md", repo / "progress.json"
+    out_dir = Path(out_dir) if out_dir else repo
+    out_dir.mkdir(parents=True, exist_ok=True)
+    md_path, js_path = out_dir / "PROGRESS.md", out_dir / "progress.json"
+    rels = [os.path.relpath(md_path, repo), os.path.relpath(js_path, repo)]   # pathspecs relative to the repo
     md_path.write_text(markdown(runs, snap, lines), encoding="utf-8", newline="\n")
     js_path.write_text(json.dumps(snap, indent=2) + "\n", encoding="utf-8", newline="\n")
     if not commit:
         return sig, "written (commit disabled)"
-    a = git(repo, "add", "--", "PROGRESS.md", "progress.json")
+    a = git(repo, "add", "--", *rels)
     if a.returncode != 0:                      # keep the old signature so the next publish retries
         return last_sig, f"written; git add failed (will retry): {a.stderr.strip()}"
-    if git(repo, "diff", "--cached", "--quiet", "--", "PROGRESS.md", "progress.json").returncode == 0:
+    if git(repo, "diff", "--cached", "--quiet", "--", *rels).returncode == 0:
         return sig, "written; nothing to commit" + sync_remote(repo)
-    c = git(repo, "commit", "--only", "-m", f"chore(progress): {stamp}", "--", "PROGRESS.md", "progress.json")
+    c = git(repo, "commit", "--only", "-m", f"chore(progress): {stamp}", "--", *rels)
     if c.returncode != 0:                      # keep the old signature so the next publish retries
         return last_sig, f"written; commit failed (will retry): {(c.stderr or c.stdout).strip()}"
     return sig, "committed" + sync_remote(repo)
@@ -301,7 +304,7 @@ def pid_alive(pid):
 
 def acquire_lock(repo):
     gd = git(repo, "rev-parse", "--absolute-git-dir").stdout.strip()
-    lock = Path(gd) / "monitoring.lock"
+    lock = Path(gd) / "monitoring_r3.lock"   # separate from rev2's monitoring.lock
     if lock.exists():
         try:
             old = int(lock.read_text().strip())
@@ -319,6 +322,7 @@ def main():
     ap.add_argument("--run-root", help="default artifacts/run_1 (artifacts/smoke/orch_flat with --smoke)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--target-frames", type=int)
+    ap.add_argument("--progress-dir", help="where PROGRESS.md/progress.json are written (default: this entry folder; artifacts/smoke with --smoke)")
     ap.add_argument("--repo-root", help="where PROGRESS.md/progress.json live and get committed (default: git toplevel)")
     ap.add_argument("--refresh", type=float, default=2.0, help="display refresh seconds")
     ap.add_argument("--publish-minutes", type=float, default=15.0)
@@ -343,6 +347,7 @@ def main():
         root = (Path.cwd() / root).resolve()
     repo = Path(args.repo_root).resolve() if args.repo_root else repo_root(ENTRY)
 
+    out_dir = Path(args.progress_dir).resolve() if args.progress_dir else (ENTRY / "artifacts" / "smoke" if args.smoke else ENTRY)
     BRANCH = current_branch(repo)
     runs = [RunView(g, m, i, root, target) for g, m in GROUPS for i in range(1, N_RUNS + 1)]
     lock = acquire_lock(repo)
@@ -350,7 +355,7 @@ def main():
         os.system("")          # enable ANSI escapes in the Windows console
     stall = args.stall_minutes * 60
     last_sig, note, last_pub = None, "", 0.0
-    existing = repo / "progress.json"
+    existing = out_dir / "progress.json"
     if existing.is_file():     # compare against what is already published so a restart does not re-commit
         try:
             old = json.loads(existing.read_text())
@@ -371,7 +376,7 @@ def main():
             header = header_text(runs, now, t0)
             lines = view_lines(runs, header)
             if not args.no_publish and (args.once or now - last_pub >= args.publish_minutes * 60):
-                last_sig, res = publish(runs, header, lines, repo, last_sig, not args.no_commit)
+                last_sig, res = publish(runs, header, lines, repo, last_sig, not args.no_commit, out_dir=out_dir)
                 last_pub, note = now, f"last publish {time.strftime('%H:%M:%S')}: {res}"
             footer = [note, "Ctrl-C exits the monitor only (training is not touched)."] if not args.once else [note]
             out = lines + [""] + footer
@@ -388,7 +393,7 @@ def main():
             for r in runs:
                 r.update(stall, now)
             header = header_text(runs, now, t0)
-            _, res = publish(runs, header, view_lines(runs, header), repo, last_sig, not args.no_commit)
+            _, res = publish(runs, header, view_lines(runs, header), repo, last_sig, not args.no_commit, force=False, out_dir=out_dir)
             print(f"final snapshot: {res}")
         try:
             lock.unlink()

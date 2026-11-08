@@ -7,7 +7,9 @@ Read `README.md` (how to run), `docs/REV3.md` (every change vs rev2 and why). Th
 - Verified (this session): `run_orchestrator.py --dry-run` OK (also with `--groups/--seeds/--concurrent/--run-root` for the pilot); 4,000-frame smoke runs of all three configs finished and wrote `frame_4000.pth` + `train.log` (`artifacts/smoke/r3_*`), with the WocaR worst-case-loss path forced on by pulling the ramps forward (worst kappa 0.5, worst eps 0.005, worst-case loss finite);
   `evaluate.py` + `report.py` run end to end on those checkpoints (2-episode eval); `visualize_perturbation.py` runs against the rev3 env/config.
 - **Not verified**: anything about learning (no real training has run), the Windows training machine's core count / speed with 25 vehicles, whether 25 vehicles is too dense (see pilot gate in README), whether κ = 0.02 / `worst_kappa_end` = 0.5 produce a visible gap.
-- Nothing is committed from this entry yet (`git status` shows `entries/05_wocar_dqn_r3/` untracked). `artifacts/smoke/` is untracked scratch.
+- Committed on `wocar_r2` (pushed) and continued on branch `wocar_r3`. `artifacts/smoke/` is untracked scratch.
+- `monitoring.py` now writes `PROGRESS.md`/`progress.json` into this entry folder (smoke: `artifacts/smoke/`) and uses its own lock file, so it cannot clobber rev2's repo-root files; the commit path was tested in a throwaway repo.
+- Full pipeline smoke (`run_orchestrator.py --smoke`, 9 runs × 3,000 frames) passed on macOS: 9/9 finished, monitor shows 9/9 done.
 
 ## Decisions made (do not relitigate without the user)
 - Reward definition unchanged. Lanes unchanged (y-normalisation depends on lane count, so ε keeps its physical meaning).

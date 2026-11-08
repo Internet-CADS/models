@@ -39,13 +39,13 @@ Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scr
 ```
 1) python entries/05_wocar_dqn_r3/run_orchestrator.py                 # window 1: launches the 9 runs (3 per batch, batches one after another)
    python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 9 at once (needs ≥ 9 free cores)
-2) python entries/05_wocar_dqn_r3/monitoring.py                       # window 2: live bars + PROGRESS.md/progress.json
+2) python entries/05_wocar_dqn_r3/monitoring.py                       # window 2: live bars + PROGRESS.md/progress.json (in this folder)
 ```
 Rough wall time from rev2 speeds (vanilla ~93, SA ~77, WocaR ~72 frames/s at 6 concurrent): vanilla ≈ 6 h, SA-DQN ≈ 7 h, WocaR ≈ 8 h per run. Sequential batches ≈ 20 h, `--concurrent` ≈ 8–10 h. The denser traffic may be somewhat slower.
 
 Orchestrator flags: `--dry-run`, `--resume` (reattach / skip finished; always on), `--retry N`, `--smoke` (3k frames into `artifacts/smoke/orch_flat`),
 `--groups a,b`, `--seeds 1,2`, `--concurrent`, `--target-frames N`, `--run-root DIR`, `--no-commit`.
-**By default the orchestrator commits each batch's `train.log` + TensorBoard files and the monitor commits/pushes `PROGRESS.md`/`progress.json` on the branch checked out at start**
+**By default the orchestrator commits each batch's `train.log` + TensorBoard files and the monitor commits/pushes `entries/05_wocar_dqn_r3/PROGRESS.md` + `progress.json` (not the repo-root files of rev2; `--progress-dir` overrides) on the branch checked out at start**
 (`--no-commit` / `--no-push` to disable; `git push origin HEAD` sends every local commit on the branch). Checkpoints and `.npy` files are never committed by the scripts.
 Monitoring flags: `--smoke`, `--publish-minutes M`, `--stall-minutes M`, `--refresh S`, `--no-commit`, `--no-push`, `--once`.
 
@@ -60,6 +60,11 @@ python visualize_perturbation.py -o perturbation.html   # model-free view of wha
 (`--epsilons 0.004,0.007`) and `report.py` merges them. Add `--frames final,peak` to also evaluate each group's peak-of-mean frame; add `--attacks pgd,worst_q,minbest,random_linf`
 for more attacks. Per-job cost is dominated by the attacks (about 13 min per run at the old 28-sweep grid; the new default grid is smaller).
 `report.py`'s mini-test section is read straight from `train.log` (50 episodes, seeds 1000–1049, every 50k frames).
+
+## Before the real run
+- Make sure the rev2 runs on the training machine are finished (shared cores; rev2's monitor owns the repo-root `PROGRESS.md`).
+- Work on branch `wocar_r3` (created from `wocar_r2`): the orchestrator and monitor commit/push to whatever branch is checked out.
+- `python run_orchestrator.py --dry-run` on the training machine, then the pilot, then the full run.
 
 ## Notes
 - Use `flat_run_dir=true` (the orchestrator does) so each run writes straight into `artifacts/run_1/<group>/model_<i>/`; a manual `train.py --config …` keeps the nested default.
