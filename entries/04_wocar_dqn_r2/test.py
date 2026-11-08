@@ -1,5 +1,6 @@
 # PATCHED vs upstream/test.py — upstream: WocaR-RL/WocaR-DQN/SA-DQN (see upstream/test.py)
 # Changes: optional auto_LiRPA/AsyncEnv imports, LegacyHighwayEnv branch, render/until_crash, device handling.
+# Rev 2: flat_run_dir support (same key as train.py); no best_frame_* logic (picks latest frame_<N>.pth or test_config:load_model_path).
 import sys
 sys.path.append("./common")
 sys.path.append("./auto_LiRPA")
@@ -24,6 +25,7 @@ import time
 import os
 import argparse
 import random
+import re
 from datetime import datetime
 from utils import Logger, get_acrobot_eps, test_plot 
 try:
@@ -40,14 +42,19 @@ Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if 
 
 def main(args):
     config = load_config(args)
-    prefix = config['env_id']
     training_config = config['training_config']
     test_config = config['test_config']
     attack_config = test_config["attack_config"]
-    if config['name_suffix']:
-        prefix += config['name_suffix']
-    if config['path_prefix']:
-        prefix = os.path.join(config['path_prefix'], prefix)
+    if config.get('flat_run_dir', False):
+        # flat layout used by run_orchestrator.py: run dir == --path_prefix (pass flat_run_dir=true on the CLI)
+        assert config['path_prefix'], "flat_run_dir requires a path_prefix"
+        prefix = config['path_prefix']
+    else:
+        prefix = config['env_id']
+        if config['name_suffix']:
+            prefix += config['name_suffix']
+        if config['path_prefix']:
+            prefix = os.path.join(config['path_prefix'], prefix)
     if 'load_model_path' in test_config and os.path.isfile(test_config['load_model_path']):
         if not os.path.exists(prefix):
             os.makedirs(prefix)
@@ -92,16 +99,12 @@ def main(args):
     if 'load_model_path' in test_config and os.path.isfile(test_config['load_model_path']):
         model_path = test_config['load_model_path']
     else:
-        logger.log("choosing the best model from " + prefix)
-        all_idx = [int(f[6:-4]) for f in os.listdir(prefix) if os.path.isfile(os.path.join(prefix, f)) and os.path.splitext(f)[1]=='.pth' and 'best' not in f]
-        all_best_idx = [int(f[11:-4]) for f in os.listdir(prefix) if os.path.isfile(os.path.join(prefix, f)) and os.path.splitext(f)[1]=='.pth' and 'best' in f]
-        if all_best_idx:
-            model_frame_idx = max(all_best_idx)
-            model_name = 'best_frame_{}.pth'.format(model_frame_idx)
-        else:
-            model_frame_idx = max(all_idx)
-            model_name = 'frame_{}.pth'.format(model_frame_idx)
-        model_path = os.path.join(prefix, model_name)
+        # No best-frame selection any more (train.py no longer writes best_frame_*.pth): use the latest frame_<N>.pth.
+        # To evaluate a specific checkpoint, set test_config:load_model_path=<file>.
+        logger.log("choosing the latest checkpoint from " + prefix)
+        all_idx = [int(f[6:-4]) for f in os.listdir(prefix) if re.fullmatch(r'frame_\d+\.pth', f)]
+        model_frame_idx = max(all_idx)
+        model_path = os.path.join(prefix, 'frame_{}.pth'.format(model_frame_idx))
 
 
     '''
