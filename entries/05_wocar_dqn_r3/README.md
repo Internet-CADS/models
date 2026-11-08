@@ -1,7 +1,7 @@
 # 05_wocar_dqn_r3 — rev3 training + evaluation guide
 
 Rev3 of the WocaR-DQN highway project. Goal: **a setup where robust training shows a visible gap to vanilla DQN, with much less compute than rev2.**
-This folder is a copy of `04_wocar_dqn_r2` (code) with changed configs; see `docs/REV3.md` for every difference and the reasoning.
+This folder is a copy of `04_wocar_dqn_r2` (code) with changed configs; see `../../docs/rev3.md` for every difference and the reasoning.
 **Reward definition is unchanged** (collision −2.0, right lane 0.1, high speed 0.4, `normalize_reward: false`).
 
 Status: prepared and smoke-tested, **nothing has been trained yet**. Production runs are started by you (see Launch).
@@ -15,7 +15,7 @@ Status: prepared and smoke-tested, **nothing has been trained yet**. Production 
 | SA-DQN | `config_highway_sadqn.json` | `artifacts/run_1/sa_dqn/model_{1..3}/` |
 | WocaR-DQN | `config_highway_wocar.json` | `artifacts/run_1/wocar_dqn/model_{1..3}/` |
 
-Key settings (full table in `docs/REV3.md`): env = 25 other vehicles (obs shows 10 nearest), 60-step episodes; robust runs use ε = 0.005, κ = 0.02,
+Key settings (full table in `../../docs/rev3.md`): env = 25 other vehicles (obs shows 10 nearest), 60-step episodes; robust runs use ε = 0.005, κ = 0.02,
 ε ramp over frames 100k–600k; WocaR additionally `worst_ratio` 0.1, `worst_eps_end` 0.001, `worst_kappa_end` 0.5 (worst-case loss **on**, RA-DQN default), `worst_schedule` 1,000,000.
 Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, cwd = this folder.
 
@@ -32,7 +32,7 @@ Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREA
 3. **Full run**, then evaluate (below).
 
 Gates while training (check `train.log`): after the ε ramp ends (~600k) `last cert reg loss` should fall well below the 1–2 it sat at in rev2;
-for WocaR watch `avg batch worst q` (rev2 drifted to −300) and clean return; if either collapses by ~400k frames, restart that run with `worst_kappa_end` 1.0 (the upstream README's advice) and note it in `docs/REV3.md`.
+for WocaR watch `avg batch worst q` (rev2 drifted to −300) and clean return; if either collapses by ~400k frames, restart that run with `worst_kappa_end` 1.0 (the upstream README's advice) and note it in `../../docs/rev3.md`.
 
 ## Launch (production)
 Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scripts\python.exe`, macOS/Linux: `.venv/bin/python`).
@@ -70,6 +70,6 @@ for more attacks. Per-job cost is dominated by the attacks (about 13 min per run
 - Use `flat_run_dir=true` (the orchestrator does) so each run writes straight into `artifacts/run_1/<group>/model_<i>/`; a manual `train.py --config …` keeps the nested default.
 - `train.py` ramps `worst_eps`, `worst_ratio` and `worst_kappa` together with `coeff = (frame − schedule_start)/worst_schedule`; they cannot be delayed independently without a code change.
 - ε-greedy exploration: 1.0 → 0.05 over frames 1k→51k, then linearly to 0 at the end (`act_epsilon_decay_zero: true`, upstream behaviour). Gradient clipping at 10 is active.
-- The verification notes for the (shared) training code are in `../../docs/rev2_verification/`; `docs/REV3.md` has every rev3 change plus status and next steps; `docs/DEVIATIONS.md` lists the differences from the paper and the authors' code.
+- The verification notes for the (shared) training code are in `../../docs/rev2_verification/`; `../../docs/rev3.md` has every rev3 change plus status and next steps; `../../docs/deviations.md` lists the differences from the paper and the authors' code.
 - Nothing under `artifacts/` is ever deleted or moved by any script. `artifacts/smoke/` holds the three 4,000-frame smoke runs used to check the rev3 configs.
 - Environment: see `requirements.txt` (torch CPU, highway-env, gymnasium, tensorboard, auto_LiRPA vendored in `auto_LiRPA/`).

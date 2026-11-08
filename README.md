@@ -20,8 +20,8 @@ Branches: `wocar_r2` is rev2 (the training machine's monitor pushes progress com
 | `docs/wocar_context.md` | background on the three methods, the highway config and the four past bugs (historical paths) |
 | `docs/rev2_verification/` | static verification of the training code against the paper, removal of the safety-score selection, smoke-test results (the training code is shared by rev2 and rev3) |
 | `docs/archive/` | old agent briefs, handoffs and runbooks, kept for history |
-| `entries/05_wocar_dqn_r3/docs/REV3.md` | every rev3 change, status, decisions and next steps |
-| `entries/05_wocar_dqn_r3/docs/DEVIATIONS.md` | where our setup differs from the paper and the authors' code, and the paper's notation slips |
+| `docs/rev3.md` | every rev3 change, status, decisions and next steps |
+| `docs/deviations.md` | where our setup differs from the paper and the authors' code, and the paper's notation slips |
 | `PROGRESS.md`, `progress.json` | written by rev2's training monitor; do not edit |
 
 ## Running things

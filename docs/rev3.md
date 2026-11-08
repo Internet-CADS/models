@@ -41,11 +41,11 @@ Notes
 - Reward definition unchanged; lanes unchanged (ε keeps its physical meaning through the y-normalisation).
 - 2,000,000 frames, checkpoint + mini-test every 50,000 (final checkpoint = last mini-test); episode length 60 is deliberately not aligned with frames (crashes end episodes early).
 - 3 seeds per group; evaluate the final frame of every run, no checkpoint selection (the peak-of-mean frame is information only).
-- WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `DEVIATIONS.md`.
+- WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `deviations.md`.
 
 ## Next steps
 1. Make sure the rev2 runs on the training machine are finished; push `wocar_r3` so the machine can pull it.
-2. Pilot: vanilla + SA-DQN + WocaR, seed 1, 600k frames (commands in `../README.md`). Go on only if SA-DQN **or** WocaR beats vanilla by ≥ ~10 crash-rate points under PGD / worst-Q at ε 0.005 and 0.01. If WocaR diverges, restart it with `worst_kappa_end` 1.0.
+2. Pilot: vanilla + SA-DQN + WocaR, seed 1, 600k frames (commands in `entries/05_wocar_dqn_r3/README.md`). Go on only if SA-DQN **or** WocaR beats vanilla by ≥ ~10 crash-rate points under PGD / worst-Q at ε 0.005 and 0.01. If WocaR diverges, restart it with `worst_kappa_end` 1.0.
 3. Full run (`run_orchestrator.py`, optionally `--concurrent`; `monitoring.py` in a second window), then `evaluate.py` and `report.py`.
 4. If there is no gap: κ 0.05, then one SA-DQN pilot with `bound_solver: pgd`. Deferred: Double DQN.
 
