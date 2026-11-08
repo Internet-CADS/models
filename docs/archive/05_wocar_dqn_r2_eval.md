@@ -1,3 +1,5 @@
+> ARCHIVED: intro for the rev2 notebook-based evaluation (the notebook was removed; evaluation is now `evaluate.py` + `report.py` in the entry folders).
+
 # 05 — Evaluation of the `04_wocar_dqn_r2` runs (intro for the eval agent)
 
 You are picking up the **evaluation side** of `entries/04_wocar_dqn_r2/` (branch `wocar_r2`). Training was set up and launched by another agent/session; do not change training code or configs. Read `entries/04_wocar_dqn_r2/README.md` and `docs/HANDOFF.md` for the training setup. This file is what you need for evaluation.

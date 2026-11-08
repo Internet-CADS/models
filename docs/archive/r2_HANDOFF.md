@@ -1,3 +1,5 @@
+> ARCHIVED: rev2 handoff from the Gate 3 era; the gates are done and the paths/branch names below are stale.
+
 # HANDOFF — `04_wocar_dqn_r2` (continue from Gate 3)
 
 You are picking this up in a **local** Claude Code session (real shell on the user's machine, torch + highway-env available). Earlier gates were done in a cloud sandbox with no torch, so **nothing has ever been executed** — Gate 3 is the first real run.

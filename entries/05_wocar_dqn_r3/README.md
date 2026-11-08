@@ -70,6 +70,6 @@ for more attacks. Per-job cost is dominated by the attacks (about 13 min per run
 - Use `flat_run_dir=true` (the orchestrator does) so each run writes straight into `artifacts/run_1/<group>/model_<i>/`; a manual `train.py --config …` keeps the nested default.
 - `train.py` ramps `worst_eps`, `worst_ratio` and `worst_kappa` together with `coeff = (frame − schedule_start)/worst_schedule`; they cannot be delayed independently without a code change.
 - ε-greedy exploration: 1.0 → 0.05 over frames 1k→51k, then linearly to 0 at the end (`act_epsilon_decay_zero: true`, upstream behaviour). Gradient clipping at 10 is active.
-- `docs/01_eval_changes.md`, `02_implementation_verification.md`, `03_smoke_test.md` are the rev2 verification notes (code is unchanged, so they still describe the training code); `docs/HANDOFF.md` is the rev3 handoff.
+- The verification notes for the (shared) training code are in `../../docs/rev2_verification/`; `docs/REV3.md` has every rev3 change plus status and next steps; `docs/DEVIATIONS.md` lists the differences from the paper and the authors' code.
 - Nothing under `artifacts/` is ever deleted or moved by any script. `artifacts/smoke/` holds the three 4,000-frame smoke runs used to check the rev3 configs.
 - Environment: see `requirements.txt` (torch CPU, highway-env, gymnasium, tensorboard, auto_LiRPA vendored in `auto_LiRPA/`).

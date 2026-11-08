@@ -1,4 +1,4 @@
-# Rev3 — what changed relative to `04_wocar_dqn_r2`
+# Rev3 — changes, status and next steps (`05_wocar_dqn_r3`)
 
 Goal: a setup where robust training shows a visible gap to vanilla DQN, within a smaller compute budget.
 Reward definition is **unchanged** (collision −2.0, right lane 0.1, high speed 0.4, `normalize_reward: false`).
@@ -30,3 +30,27 @@ Notes
   `report.py` uses `TRAIN_EPS = 0.005`, 2M frames, 3 seeds, shows the final-checkpoint robustness section first and skips attacks that were not evaluated.
   Fixed along the way: `evaluate.py` crashed (after finishing the job) when the run folder was outside the entry dir.
 - Launcher additions: `run_orchestrator.py --groups --seeds --concurrent`; `monitoring.py` uses 9 runs × 2M frames. `smoke_test.py` (rev2 gate tooling) was not copied.
+
+## Status (prepared, not yet trained)
+- Committed on branch `wocar_r3`. Folder = copy of the r2 code with 3 changed configs, 9-run launcher/monitor constants, new orchestrator flags (`--groups --seeds --concurrent`), and rev3 defaults in `evaluate.py` / `report.py`.
+- Verified on macOS: `run_orchestrator.py --dry-run` (also for the pilot command); 4,000-frame smoke runs of all three configs (WocaR with the ramps pulled forward so the worst-case-loss path runs: finite losses); the full pipeline smoke (`--smoke`, 9 runs × 3,000 frames, monitor shows 9/9 done); `evaluate.py` + `report.py` end to end on the smoke checkpoints; `visualize_perturbation.py` on the rev3 env.
+- **Not verified:** anything about learning, speed on the training machine with 25 vehicles, whether 25 vehicles is too dense, whether the settings produce a gap.
+- The monitor writes `PROGRESS.md`/`progress.json` into this folder (smoke: `artifacts/smoke/`) with its own lock file, so it cannot clobber rev2's repo-root files.
+
+## Decisions already made (do not relitigate without the user)
+- Reward definition unchanged; lanes unchanged (ε keeps its physical meaning through the y-normalisation).
+- 2,000,000 frames, checkpoint + mini-test every 50,000 (final checkpoint = last mini-test); episode length 60 is deliberately not aligned with frames (crashes end episodes early).
+- 3 seeds per group; evaluate the final frame of every run, no checkpoint selection (the peak-of-mean frame is information only).
+- WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `DEVIATIONS.md`.
+
+## Next steps
+1. Make sure the rev2 runs on the training machine are finished; push `wocar_r3` so the machine can pull it.
+2. Pilot: vanilla + SA-DQN + WocaR, seed 1, 600k frames (commands in `../README.md`). Go on only if SA-DQN **or** WocaR beats vanilla by ≥ ~10 crash-rate points under PGD / worst-Q at ε 0.005 and 0.01. If WocaR diverges, restart it with `worst_kappa_end` 1.0.
+3. Full run (`run_orchestrator.py`, optionally `--concurrent`; `monitoring.py` in a second window), then `evaluate.py` and `report.py`.
+4. If there is no gap: κ 0.05, then one SA-DQN pilot with `bound_solver: pgd`. Deferred: Double DQN.
+
+## Rules carried over from the user
+- Never delete or move anything under `artifacts/`; commit only what you produced with explicit pathspecs; do not touch the repo-root `PROGRESS.md` / `progress.json` (rev2's monitor writes them); do not add the large cumulative `.npy` files.
+- Commit trailer: `Co-Authored-By: <model name> <noreply@anthropic.com>`. The repo stores LF line endings.
+- Report outcomes faithfully (failed gates included); ask before anything outward-facing (push, publish).
+

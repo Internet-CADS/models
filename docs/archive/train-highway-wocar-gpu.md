@@ -1,3 +1,5 @@
+> ARCHIVED: legacy GPU runbook for the 3rd run.
+
 # Train WocaR highway on GPU
 
 Use this prompt to start a full robust training run on **GPU** (any CUDA device). On Mac (CPU, `torch.cuda.is_available()==False`) the same command falls back to CPU automatically — no change needed.

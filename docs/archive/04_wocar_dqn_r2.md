@@ -1,3 +1,5 @@
+> ARCHIVED: the original rev2 training brief (gated workflow). Superseded by `entries/05_wocar_dqn_r3/README.md` and `docs/REV3.md` for current work.
+
 # Agent Task: `04_wocar_dqn_r2` — Cleanup, Verification, Smoke Test & Training Infrastructure
 
 **EXECUTION MODE — READ THIS FIRST**

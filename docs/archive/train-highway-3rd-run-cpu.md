@@ -1,3 +1,5 @@
+> ARCHIVED: legacy 3rd-run runbook; its best-frame / checkpoint-selection steps were discarded.
+
 # Train 3rd Run Highway Models on CPU (Vanilla DQN / SA-DQN / WocaR-DQN)
 
 Use this prompt to run one or more of the **3rd run** `highway-v0` models in `entries/02_wocar_dqn/` on **CPU** (forced via `CUDA_VISIBLE_DEVICES=""` and single-thread BLAS `OMP_NUM_THREADS=1`).

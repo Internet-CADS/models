@@ -32,5 +32,5 @@ Note: `train.py` writes to `<path_prefix>/highway-v0_<name_suffix>/`, so the per
 
 ## Not changed in this gate (flagged)
 - `test.py` l.97–100 (evaluation script) still prefers `best_frame_*.pth` when present. Eval is out of scope; no such files will exist after this change.
-- `agents/train-highway-3rd-run-cpu.md` (legacy runbook) still describes best-frame/selection; it is discarded per the brief.
+- `docs/archive/train-highway-3rd-run-cpu.md` (legacy runbook) still describes best-frame/selection; it is discarded per the brief.
 - `.gitignore` `*.log` removal and `path_prefix` repoint belong to later gates.

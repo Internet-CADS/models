@@ -1,3 +1,5 @@
+> NOTE: written for the first WocaR baseline (`entries/03_wocar_dqn`, formerly `02_wocar_dqn`, branch `wocar-eval`); its run tables and paths are historical. The paper is `docs/paper.pdf`. Current work: `entries/05_wocar_dqn_r3/`.
+
 # WocaR-DQN on highway-env — Project Context for Discussion
 
 Use this file as background when discussing this project. The WocaR-RL paper is in `paper.pdf` (Liang et al., NeurIPS 2022). The executed evaluation notebook (tables + figures) is in `02_wocar_evaluation.pdf`. Code lives in `entries/02_wocar_dqn/` of the `models` repo (branch `wocar-eval`).
