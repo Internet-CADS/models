@@ -19,21 +19,9 @@ Key settings (full table in `../../docs/rev3.md`): env = 25 other vehicles (obs 
 ε ramp over frames 100k–600k; WocaR additionally `worst_ratio` 0.1, `worst_eps_end` 0.001, `worst_kappa_end` 0.5 (worst-case loss **on**, RA-DQN default), `worst_schedule` 1,000,000.
 Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, cwd = this folder.
 
-## Recommended order (compute is limited)
-1. **Dry run** (no training): `python run_orchestrator.py --dry-run`
-2. **Pilot** (≈3–4 h, 3 runs in parallel): vanilla + SA-DQN + WocaR, seed 1, 600k frames, kept out of `run_1`:
-   ```
-   python run_orchestrator.py --groups vanilla_dqn,sa_dqn,wocar_dqn --seeds 1 --concurrent --target-frames 600000 --run-root artifacts/pilot --no-commit
-   python evaluate.py artifacts/pilot --seeds 1 --final-frame 600000 --episodes 100
-   python report.py artifacts/pilot
-   python pilot_gate.py artifacts/pilot        # prints the table and a GO / NO-GO verdict (exit code 0 = GO)
-   ```
-   Go ahead with the full run only if SA-DQN's **or** WocaR's crash rate under PGD / worst-Q at ε = 0.005 and 0.01 is clearly below vanilla's (at least ~10 percentage points; one seed cannot show significance).
-   Also look at vanilla's **clean** crash rate in `train.log` / the report: if it is very high (say > 40 %), the traffic is probably too dense; lower `env_config.vehicles_count` (try 18) in all three configs.
-3. **Full run**, then evaluate (below).
-
-Gates while training (check `train.log`): after the ε ramp ends (~600k) `last cert reg loss` should fall well below the 1–2 it sat at in rev2;
-for WocaR watch `avg batch worst q` (rev2 drifted to −300) and clean return; if either collapses by ~400k frames, restart that run with `worst_kappa_end` 1.0 (the upstream README's advice) and note it in `../../docs/rev3.md`.
+## Before the real run
+1. Dry run (no training): `python run_orchestrator.py --dry-run`
+2. Start the full run (Launch, below), then evaluate (Evaluate, below) and look at the results.
 
 ## Launch (production)
 Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scripts\python.exe`, macOS/Linux: `.venv/bin/python`).
@@ -65,7 +53,7 @@ for more attacks. Per-job cost is dominated by the attacks (about 13 min per run
 ## Before the real run
 - Make sure the rev2 runs on the training machine are finished (shared cores; rev2's monitor owns the repo-root `PROGRESS.md`).
 - Work on branch `wocar_r3` (created from `wocar_r2`): the orchestrator and monitor commit/push to whatever branch is checked out.
-- `python run_orchestrator.py --dry-run` on the training machine, then the pilot, then the full run.
+- `python run_orchestrator.py --dry-run` on the training machine, then the full run.
 
 ## Notes
 - Use `flat_run_dir=true` (the orchestrator does) so each run writes straight into `artifacts/run_1/<group>/model_<i>/`; a manual `train.py --config …` keeps the nested default.

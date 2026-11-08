@@ -24,8 +24,6 @@ Notes
   They therefore start with the epsilon ramp (frame 100k) and reach their end values at frame 1.1M.
 - Checkpoint and mini-test interval stay at 50,000 (unchanged from r2), so the final checkpoint `frame_2000000.pth` is also the last mini-test. 40 checkpoints per run.
 - Episode length (60) is not aligned with frames on purpose: crashes end episodes early, so training episodes vary in length.
-- Planned gates: pilot of 1 seed vanilla + SA-DQN at ~600k frames (commands in README); watch `cert reg loss` falling after the ramp; if WocaR's
-  worst-Q diverges or clean return collapses by ~400k, restart that run with `worst_kappa_end = 1.0` (upstream README advice).
 - Evaluation scripts were adapted for r3: `evaluate.py` defaults to seeds 1–3, `--frames final` (2,000,000, `--final-frame` overrides), epsilons 0/0.0025/0.005/0.0075/0.01, attacks PGD + worst-Q;
   `report.py` uses `TRAIN_EPS = 0.005`, 2M frames, 3 seeds, shows the final-checkpoint robustness section first and skips attacks that were not evaluated.
   Fixed along the way: `evaluate.py` crashed (after finishing the job) when the run folder was outside the entry dir.
@@ -33,7 +31,7 @@ Notes
 
 ## Status (prepared, not yet trained)
 - Committed on branch `wocar_r3`. Folder = copy of the r2 code with 3 changed configs, 9-run launcher/monitor constants, new orchestrator flags (`--groups --seeds --concurrent`), and rev3 defaults in `evaluate.py` / `report.py`.
-- Verified on macOS: `run_orchestrator.py --dry-run` (also for the pilot command); 4,000-frame smoke runs of all three configs (WocaR with the ramps pulled forward so the worst-case-loss path runs: finite losses); the full pipeline smoke (`--smoke`, 9 runs × 3,000 frames, monitor shows 9/9 done); `evaluate.py` + `report.py` end to end on the smoke checkpoints; `visualize_perturbation.py` on the rev3 env.
+- Verified on macOS: `run_orchestrator.py --dry-run`; 4,000-frame smoke runs of all three configs (WocaR with the ramps pulled forward so the worst-case-loss path runs: finite losses); the full pipeline smoke (`--smoke`, 9 runs × 3,000 frames, monitor shows 9/9 done); `evaluate.py` + `report.py` end to end on the smoke checkpoints; `visualize_perturbation.py` on the rev3 env.
 - **Not verified:** anything about learning, speed on the training machine with 25 vehicles, whether 25 vehicles is too dense, whether the settings produce a gap.
 - The monitor writes `PROGRESS.md`/`progress.json` into this folder (smoke: `artifacts/smoke/`) with its own lock file, so it cannot clobber rev2's repo-root files.
 
@@ -44,13 +42,12 @@ Notes
 - WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `deviations.md`.
 
 ## Next steps
-1. Make sure the rev2 runs on the training machine are finished; push `wocar_r3` so the machine can pull it.
-2. Pilot: vanilla + SA-DQN + WocaR, seed 1, 600k frames (commands in `entries/05_wocar_dqn_r3/README.md`). Go on only if SA-DQN **or** WocaR beats vanilla by ≥ ~10 crash-rate points under PGD / worst-Q at ε 0.005 and 0.01. If WocaR diverges, restart it with `worst_kappa_end` 1.0.
-3. Full run (`run_orchestrator.py`, optionally `--concurrent`; `monitoring.py` in a second window), then `evaluate.py` and `report.py`.
-4. If there is no gap: κ 0.05, then one SA-DQN pilot with `bound_solver: pgd`. Deferred: Double DQN.
+1. Make sure the rev2 runs on the training machine are finished; the machine pulls `wocar_r3`.
+2. Full run: `run_orchestrator.py --concurrent` (all 9 runs at once), `monitoring.py` in a second window. Then `evaluate.py` and `report.py`, and look at the results. Step-by-step: `r3_agent_runbook.md`.
+3. Ideas if the results show no gap (the user decides): κ 0.05; one SA-DQN run with `bound_solver: pgd`; if WocaR diverges, `worst_kappa_end` 1.0 (upstream README advice). Deferred: Double DQN.
 
 ## Rules carried over from the user
 - Never delete or move anything under `artifacts/`; commit only what you produced with explicit pathspecs; do not touch the repo-root `PROGRESS.md` / `progress.json` (rev2's monitor writes them); do not add the large cumulative `.npy` files.
 - Commit trailer: `Co-Authored-By: <model name> <noreply@anthropic.com>`. The repo stores LF line endings.
-- Report outcomes faithfully (failed gates included); ask before anything outward-facing (push, publish).
+- Report outcomes faithfully (failures included); ask before anything outward-facing (push, publish).
 

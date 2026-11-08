@@ -29,6 +29,6 @@ blended-argmax bootstrap, hard target copies, ε-greedy decaying to 0) are not l
 
 ## C. Recommended changes (applied in rev3 where marked)
 1. `worst_ratio` 0.1, `worst_eps_end` 0.001 — **applied**. Keep `worst_kappa_end` 0.5 (RA-DQN default) and `worst_rate` 4.
-2. Pilot with all three groups (vanilla, SA-DQN, WocaR; seed 1; 600k frames); go on if SA-DQN **or** WocaR beats vanilla by ≥ ~10 crash-rate points under PGD / worst-Q at ε 0.005 and 0.01. Fallback for a diverging WocaR run: `worst_kappa_end` 1.0.
-3. If neither shows a gap: κ 0.05 first, then one SA-DQN pilot with `bound_solver: pgd`.
+2. Run it and look at the results (no pilot, no gate). Fallback if WocaR diverges: `worst_kappa_end` 1.0.
+3. If there is no gap: κ 0.05 first, then one SA-DQN run with `bound_solver: pgd`.
 4. Deferred code changes: Double DQN for all groups; (if WocaR adds nothing over SA-DQN) read RA-DQN's `ibp.worst_action_select` and compare with ours.
