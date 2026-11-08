@@ -1,9 +1,9 @@
 # Training progress
 
-_Generated 2026-11-08 09:58:53 +0100_
+_Generated 2026-11-08 10:13:54 +0100_
 
 ```text
-batch 3/3 · 12/18 runs done · elapsed 28:47
+batch 3/3 · 12/18 runs done · elapsed 29:02
 
 vanilla_dqn/model_1  [####################] 100.0%  4,000,000 / 4,000,000       - f/s  ETA --:--:--  done
 vanilla_dqn/model_2  [####################] 100.0%  4,000,000 / 4,000,000       - f/s  ETA --:--:--  done
@@ -19,12 +19,12 @@ sa_dqn/model_4       [####################] 100.0%  4,000,000 / 4,000,000       
 sa_dqn/model_5       [####################] 100.0%  4,000,000 / 4,000,000       - f/s  ETA --:--:--  done
 sa_dqn/model_6       [####################] 100.0%  4,000,000 / 4,000,000       - f/s  ETA --:--:--  done
 
-wocar_dqn/model_1    [#-------------------]   5.5%    221,000 / 4,000,000    57.4 f/s  ETA 18:17:37  training
-wocar_dqn/model_2    [#-------------------]   5.5%    221,000 / 4,000,000    57.3 f/s  ETA 18:18:42  training
-wocar_dqn/model_3    [#-------------------]   5.5%    220,000 / 4,000,000    57.3 f/s  ETA 18:19:47  training
-wocar_dqn/model_4    [#-------------------]   5.5%    219,000 / 4,000,000    56.8 f/s  ETA 18:28:38  training
-wocar_dqn/model_5    [#-------------------]   5.5%    220,000 / 4,000,000    56.9 f/s  ETA 18:26:43  training
-wocar_dqn/model_6    [#-------------------]   5.5%    221,000 / 4,000,000    57.4 f/s  ETA 18:18:03  training
+wocar_dqn/model_1    [#-------------------]   6.9%    277,000 / 4,000,000    71.6 f/s  ETA 14:26:45  training
+wocar_dqn/model_2    [#-------------------]   6.9%    277,000 / 4,000,000    71.2 f/s  ETA 14:31:14  training
+wocar_dqn/model_3    [#-------------------]   6.9%    276,000 / 4,000,000    71.3 f/s  ETA 14:30:41  training
+wocar_dqn/model_4    [#-------------------]   6.9%    275,000 / 4,000,000    71.1 f/s  ETA 14:32:35  training
+wocar_dqn/model_5    [#-------------------]   6.9%    276,000 / 4,000,000    71.5 f/s  ETA 14:28:05  training
+wocar_dqn/model_6    [#-------------------]   7.0%    278,000 / 4,000,000    71.9 f/s  ETA 14:23:11  training
 ```
 
 | run | % | frames | rate (f/s) | ETA | status |
@@ -41,9 +41,9 @@ wocar_dqn/model_6    [#-------------------]   5.5%    221,000 / 4,000,000    57.
 | sa_dqn/model_4 | 100.0 | 4,000,000 / 4,000,000 | 76.58 | - | done |
 | sa_dqn/model_5 | 100.0 | 4,000,000 / 4,000,000 | 80.97 | - | done |
 | sa_dqn/model_6 | 100.0 | 4,000,000 / 4,000,000 | 82.37 | - | done |
-| wocar_dqn/model_1 | 5.5 | 221,000 / 4,000,000 | 57.38 | 18:17:37 | training |
-| wocar_dqn/model_2 | 5.5 | 221,000 / 4,000,000 | 57.33 | 18:18:42 | training |
-| wocar_dqn/model_3 | 5.5 | 220,000 / 4,000,000 | 57.28 | 18:19:47 | training |
-| wocar_dqn/model_4 | 5.5 | 219,000 / 4,000,000 | 56.84 | 18:28:38 | training |
-| wocar_dqn/model_5 | 5.5 | 220,000 / 4,000,000 | 56.92 | 18:26:43 | training |
-| wocar_dqn/model_6 | 5.5 | 221,000 / 4,000,000 | 57.36 | 18:18:03 | training |
+| wocar_dqn/model_1 | 6.9 | 277,000 / 4,000,000 | 71.59 | 14:26:45 | training |
+| wocar_dqn/model_2 | 6.9 | 277,000 / 4,000,000 | 71.22 | 14:31:14 | training |
+| wocar_dqn/model_3 | 6.9 | 276,000 / 4,000,000 | 71.28 | 14:30:41 | training |
+| wocar_dqn/model_4 | 6.9 | 275,000 / 4,000,000 | 71.15 | 14:32:35 | training |
+| wocar_dqn/model_5 | 6.9 | 276,000 / 4,000,000 | 71.5 | 14:28:05 | training |
+| wocar_dqn/model_6 | 7.0 | 278,000 / 4,000,000 | 71.87 | 14:23:11 | training |
