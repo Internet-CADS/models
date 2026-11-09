@@ -2,8 +2,9 @@
 """Robustness evaluation of rev3 checkpoints (script version of the old notebook).
 
 For each group (vanilla_dqn / sa_dqn / wocar_dqn) in a run folder, evaluate every seed at
-  * "final": frame 2,000,000 (default; the same frame for every run, no checkpoint selection)
-  * "peak": optional (--frames peak or final,peak): frame where the seed-mean mini-test return peaks (same rule as report.py)
+  * "final": frame 2,000,000: the same frame for every run, no checkpoint selection
+  * "peak": the frame where the seed-mean mini-test return peaks (same rule as report.py)
+Both are evaluated by default (--frames final,peak); if a group's peak frame is the final frame it is evaluated once and shown as "final".
 Each (group, seed, frame) is one job: clean rollouts, certified action ratio (auto_LiRPA), and
 attack sweeps (random_linf / pgd / minbest / worst_q) over epsilon. Results are cached as JSON in
 <cache-dir> (default artifacts/eval_cache/<run name>/), and report.py reads them.
@@ -247,7 +248,7 @@ def main():
     ap.add_argument("--no-certify", action="store_true")
     ap.add_argument("--groups", default=",".join(GROUP_CONFIG))
     ap.add_argument("--seeds", default="1,2,3,4")
-    ap.add_argument("--frames", default="final", help="comma list of: final (2M), peak, or integer frames")
+    ap.add_argument("--frames", default="final,peak", help="comma list of: final (2M), peak, or integer frames (default: both final and peak)")
     ap.add_argument("--final-frame", type=int, default=FINAL_FRAME, help="frame meant by 'final' (default 2,000,000; use e.g. 600000 for a pilot)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--force", action="store_true", help="recompute even if cached")

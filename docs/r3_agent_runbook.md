@@ -73,11 +73,11 @@ cd entries/05_wocar_dqn_r3
 python evaluate.py artifacts/run_1 --workers 12       # one single-threaded job per run; lower it if other programs are using the CPU
 python report.py artifacts/run_1
 ```
-This evaluates the final checkpoint (frame 2,000,000) of every run, the same frame for all runs and with no checkpoint selection: PGD and worst-Q at ε 0, 0.0025, 0.005, 0.0075, 0.01, 100 episodes, plus certification. Output: `artifacts/run_1/report.html`.
+This evaluates two views: the final checkpoint (frame 2,000,000) of every run (same frame for all, no selection), and each group's peak-of-mean checkpoint (the frame where the seed-mean mini-test return is highest; the script picks it from the logs). 12 jobs per view (up to 24). PGD and worst-Q at ε 0, 0.0025, 0.005, 0.0075, 0.01, 100 episodes, plus certification. Output: `artifacts/run_1/report.html`.
 Commit with explicit paths: the twelve `train.log` files, `artifacts/eval_cache/run_1/`, `artifacts/run_1/report.html`. Do **not** commit checkpoints (`*.pth`) or `.npy` files without asking.
 
 ## Step 5 — message to the user
-Send: the headline comparison from the report at ε = 0.005 and 0.01 (vanilla vs SA-DQN vs WocaR: return and crash rate under PGD / worst-Q) with the per-seed values and not only the means (seeds differ a lot in this kind of training), anything unusual (failed or restarted runs, a run whose mini-test return collapsed late in training), what is committed locally, and what is left to push.
+Send: the headline comparison from the report at ε = 0.005 and 0.01 (vanilla vs SA-DQN vs WocaR: return and crash rate under PGD / worst-Q), for both views (final frame and peak frame) with the per-seed values and not only the means (seeds differ a lot in this kind of training), anything unusual (failed or restarted runs, a run whose mini-test return collapsed late in training), what is committed locally, and what is left to push.
 
 ## Where things are
 `entries/05_wocar_dqn_r3/README.md` (flags, details) · `docs/rev3.md` (changes, decisions) · `docs/deviations.md` (paper/authors' code differences).

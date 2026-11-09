@@ -38,7 +38,7 @@ Notes
 ## Decisions already made (do not relitigate without the user)
 - Reward definition unchanged; lanes unchanged (ε keeps its physical meaning through the y-normalisation).
 - 2,000,000 frames, checkpoint + mini-test every 50,000 (final checkpoint = last mini-test); episode length 60 is deliberately not aligned with frames (crashes end episodes early).
-- 4 seeds per group (12 runs = all 12 threads of the desktop; costs some speed per run); evaluate the final frame of every run, no checkpoint selection (the peak-of-mean frame is information only).
+- 4 seeds per group (12 runs = all 12 threads of the desktop; costs some speed per run); evaluate two views by default: the final frame of every run (same frame, no selection) and each group's peak-of-mean frame (`evaluate.py --frames final,peak`).
 - WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `deviations.md`.
 
 ## Next steps
