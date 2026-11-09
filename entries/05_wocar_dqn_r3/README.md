@@ -39,15 +39,14 @@ Orchestrator flags: `--dry-run`, `--resume` (reattach / skip finished; always on
 Monitoring flags: `--smoke`, `--publish-minutes M`, `--stall-minutes M`, `--refresh S`, `--no-commit`, `--no-push`, `--once`.
 
 ## Evaluate
-From this folder, with the repo venv. Evaluation covers two views by default: the **final frame (2,000,000) of every run** (same frame for all, no selection) and each group's **peak-of-mean frame** (the frame where the seed-mean mini-test return is highest, chosen on the mini-test data and evaluated on fresh episodes). The final view shows whether training stayed stable; the peak view shows how robust the best policies are. If a group's peak is its final frame, it is evaluated once and shown as "final".
+From this folder, with the repo venv. Evaluation covers each group's **peak-of-mean frame** (the frame where the seed-mean mini-test return is highest, chosen on the mini-test data and evaluated on fresh episodes): this is the result the report shows. Other frames (e.g. the final frame 2,000,000, `--frames final`) can be evaluated but are not part of the report.
 ```
-python evaluate.py artifacts/run_2 --workers 6      # defaults: seeds 1-3, frames final (2M) + peak, 100 episodes, PGD + worst-Q, eps 0/0.0025/0.005/0.0075/0.01, certification
+python evaluate.py artifacts/run_2 --workers 6      # defaults: seeds 1-3, peak frame, 100 episodes, PGD + worst-Q + MinBest + random L-inf, eps 0/0.0025/0.005/0.0075/0.01, certification
 python report.py artifacts/run_2                    # -> artifacts/run_2/report.html: mini-test curves per group + robustness section
 python visualize_perturbation.py -o perturbation.html   # model-free view of what epsilon means (reads eps/env from config_highway_sadqn.json)
 ```
 `evaluate.py` caches one JSON per (group, seed, frame, settings) in `artifacts/eval_cache/<run name>/` and skips cached jobs; extra epsilons can be added later
-(`--epsilons 0.004,0.007`) and `report.py` merges them. `--frames final` or `--frames peak` restricts it to one view; add `--attacks pgd,worst_q,minbest,random_linf`
-for more attacks. Per-job cost is dominated by the attacks (about 13 min per run at the old 28-sweep grid; the new default grid is smaller).
+(`--epsilons 0.004,0.007`) and `report.py` merges them. `--frames` and `--attacks` choose other frames / attacks (default: peak; all four attacks). Per-job cost is dominated by the attacks (about 13 min per run at the old 28-sweep grid; the new default grid is smaller).
 `report.py`'s mini-test section is read straight from `train.log` (50 episodes, seeds 1000–1049, every 50k frames).
 
 ## Before the real run

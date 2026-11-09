@@ -24,8 +24,8 @@ Notes
   They therefore start with the epsilon ramp (frame 100k) and reach their end values at frame 1.1M.
 - Checkpoint and mini-test interval stay at 50,000 (unchanged from r2), so the final checkpoint `frame_2000000.pth` is also the last mini-test. 40 checkpoints per run.
 - Episode length (60) is not aligned with frames on purpose: crashes end episodes early, so training episodes vary in length.
-- Evaluation scripts were adapted for r3: `evaluate.py` defaults to seeds 1–3, `--frames final` (2,000,000, `--final-frame` overrides), epsilons 0/0.0025/0.005/0.0075/0.01, attacks PGD + worst-Q;
-  `report.py` uses `TRAIN_EPS = 0.005`, 2M frames, 3 seeds, shows the final-checkpoint robustness section first and skips attacks that were not evaluated.
+- Evaluation scripts were adapted for r3: `evaluate.py` defaults to seeds 1–3, `--frames peak` (the group's peak-of-mean frame; `final` / integer frames are optional), epsilons 0/0.0025/0.005/0.0075/0.01, attacks PGD + worst-Q + MinBest + random L∞;
+  `report.py` uses `TRAIN_EPS = 0.005`, 2M frames, 3 seeds, shows the peak-checkpoint robustness section and skips attacks that were not evaluated.
   Fixed along the way: `evaluate.py` crashed (after finishing the job) when the run folder was outside the entry dir.
 - Launcher additions: `run_orchestrator.py --groups --seeds --concurrent`; `monitoring.py` uses 9 runs × 2M frames. `smoke_test.py` (rev2 gate tooling) was not copied.
 
@@ -38,7 +38,7 @@ Notes
 ## Decisions already made (do not relitigate without the user)
 - Reward definition unchanged; lanes unchanged (ε keeps its physical meaning through the y-normalisation).
 - 2,000,000 frames, checkpoint + mini-test every 50,000 (final checkpoint = last mini-test); episode length 60 is deliberately not aligned with frames (crashes end episodes early).
-- 3 seeds per group; evaluate two views by default: the final frame of every run (same frame, no selection) and each group's peak-of-mean frame (`evaluate.py --frames final,peak`).
+- 3 seeds per group; evaluate each group's peak-of-mean frame (the only view in the report; `evaluate.py --frames peak`, the default). The final frame was also evaluated once (cached, not reported).
 - WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `deviations.md`.
 
 ## Compute (measured on 2026-11-09)
@@ -75,6 +75,15 @@ The earlier plan said 9–12 h for 12 runs; that came from rev2's speeds and ign
 The runbook (Step 3b) applies the last row. It assumes hyperthreads add no throughput (inferred from the first snapshot of the 12-run attempt) and adjacent-pair numbering of logical processors.
 
 **Decision:** the first launch (25 vehicles, 12 runs, `artifacts/run_1`) was stopped after about 40 minutes at ~20 frames/s per run (~28 h projected). It was restarted with 15 vehicles and 9 runs (3 seeds) in `artifacts/run_2` (~13 h projected, ~40 frames/s per run expected). `artifacts/run_1` is kept untouched as the aborted attempt and is not used for any result.
+
+## Extra seeds (seeds 4–7)
+Why: with 3 seeds per group the seed-to-seed spread of crash rates under attack (5–12 points) dominates the comparison; the group-mean uncertainty is about ±5.5 points (estimate), and more evaluation episodes cannot reduce it. Plan: seeds 4 and 5 on the desktop (6 runs, ~10 h, `r3_agent_runbook.md`, section "Extra seeds batch") and seeds 6 and 7 on the laptop (M1 Pro, 8 performance cores; 6 runs, ~9–11 h estimated, run with `caffeinate`). Expected result: 7 seeds per group, group-mean uncertainty about ±3.6 points.
+
+Laptop (from `entries/05_wocar_dqn_r3/`, plugged in, nothing else heavy running):
+```
+caffeinate -i ../../.venv/bin/python run_orchestrator.py --concurrent --seeds 6,7 --no-commit
+```
+Evaluation after both batches are on the laptop (`git pull` first): `evaluate.py artifacts/run_2 --episodes 300 --workers 9` discovers all seeds present (1–7). The peak frame is the argmax of the seed-mean mini-test curve, so adding seeds can move it; results are cached per (group, seed, frame), so seeds 1–3 are re-evaluated only if the peak frame changes (up to 21 jobs, ~2.3 h at 300 episodes; otherwise 12 jobs, ~1.5 h).
 
 ## Next steps
 1. Make sure the rev2 runs on the training machine are finished; the machine pulls `wocar_r3`.

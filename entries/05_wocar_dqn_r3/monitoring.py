@@ -341,6 +341,7 @@ def main():
     ap.add_argument("--run-root", help="default artifacts/run_2 (artifacts/smoke/orch_flat with --smoke)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--target-frames", type=int)
+    ap.add_argument("--seeds", help="comma list of seeds/model indices to show (default 1..%d); e.g. 4,5 for the extra-seeds batch" % N_RUNS)
     ap.add_argument("--progress-dir", help="where PROGRESS.md/progress.json are written (default: this entry folder; artifacts/smoke with --smoke)")
     ap.add_argument("--repo-root", help="where PROGRESS.md/progress.json live and get committed (default: git toplevel)")
     ap.add_argument("--refresh", type=float, default=2.0, help="display refresh seconds")
@@ -368,7 +369,8 @@ def main():
 
     out_dir = Path(args.progress_dir).resolve() if args.progress_dir else (ENTRY / "artifacts" / "smoke" if args.smoke else ENTRY)
     BRANCH = current_branch(repo)
-    runs = [RunView(g, m, i, root, target) for g, m in GROUPS for i in range(1, N_RUNS + 1)]
+    seeds = [int(s) for s in args.seeds.split(",")] if args.seeds else list(range(1, N_RUNS + 1))
+    runs = [RunView(g, m, i, root, target) for g, m in GROUPS for i in seeds]
     lock = acquire_lock(repo)
     if os.name == "nt":
         os.system("")          # enable ANSI escapes in the Windows console

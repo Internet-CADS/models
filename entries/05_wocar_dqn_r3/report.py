@@ -19,7 +19,7 @@ from pathlib import Path
 GROUPS = [("vanilla_dqn", "Vanilla DQN"), ("sa_dqn", "SA-DQN"), ("wocar_dqn", "WocaR-DQN")]
 FRAME_RE = re.compile(r"^frame (\d+)/(\d+)")
 TEST_RE = re.compile(r"this test avg reward:\s*(\S+),\s*crash rate:\s*(\S+)")
-SEED_COLORS = ["#4e79a7", "#f28e2b", "#59a14f", "#b07aa1", "#9c755f", "#76b7b2"]
+SEED_COLORS = ["#4e79a7", "#f28e2b", "#59a14f", "#b07aa1", "#9c755f", "#76b7b2", "#edc948", "#e377c2"]
 MEAN_COLOR = "#e15759"
 
 
@@ -91,7 +91,7 @@ def chart_svg(title, runs, mean, peak, max_frame, ymax):
     s.append(f'<text class="axis" transform="translate(14 {T + ph / 2}) rotate(-90)" text-anchor="middle">mini-test return</text>')
     for i, (name, data) in enumerate(runs.items()):
         pts = " ".join(f"{x(fr):.1f},{y(v[0]):.1f}" for fr, v in sorted(data.items()))
-        s.append(f'<polyline class="seed" stroke="{SEED_COLORS[i % 6]}" points="{pts}"><title>{name}</title></polyline>')
+        s.append(f'<polyline class="seed" stroke="{SEED_COLORS[i % len(SEED_COLORS)]}" points="{pts}"><title>{name}</title></polyline>')
     # peak crosshair
     pf, pv = peak
     s.append(f'<line class="peak" x1="{x(pf):.1f}" x2="{x(pf):.1f}" y1="{T}" y2="{T + ph}"/>'
@@ -110,7 +110,7 @@ ATTACKS = [("random_linf", "Random L-inf noise"), ("pgd", "10-step PGD"),
            ("minbest", "MinBest"), ("worst_q", "Worst-action (min-Q) PGD")]
 TRAIN_EPS = 0.005          # rev3 training epsilon (config_highway_sadqn/wocar.json)
 TOTAL_FRAMES = 2_000_000  # rev3 training length
-EXPECTED_SEEDS = 3        # runs per group in rev3
+EXPECTED_SEEDS = 7        # runs per group once the extra seeds 4-7 are done (rev3 started with 3)
 
 
 def load_eval(cache_dir):
@@ -341,7 +341,7 @@ def main():
         crash = sum(r[pf][1] for r in g["runs"].values()) / len(g["runs"])
         rows = "".join(f"<tr><td>{n}</td><td>{r[pf][0]:.2f}</td><td>{r[pf][1]:.2f}</td></tr>"
                        for n, r in g["runs"].items() if pf in r)
-        legend = "".join(f'<span><i style="background:{SEED_COLORS[i % 6]}"></i>{n}</span>'
+        legend = "".join(f'<span><i style="background:{SEED_COLORS[i % len(SEED_COLORS)]}"></i>{n}</span>'
                          for i, n in enumerate(g["runs"]))
         legend += f'<span><i style="background:{MEAN_COLOR};height:4px"></i>mean over seeds</span>'
         body.append(
@@ -355,7 +355,7 @@ def main():
 
     eval_dir = args.eval_dir or Path(__file__).resolve().parent / "artifacts" / "eval_cache" / run_dir.resolve().name
     ev = load_eval(eval_dir) if eval_dir.is_dir() else {}
-    robust = robustness_section(ev, "final") + robustness_section(ev, "peak")
+    robust = robustness_section(ev, "peak")   # only the peak-of-mean checkpoints are reported
     if not robust:
         robust = '<p class="sub">No evaluation results found (run evaluate.py to add robustness sections).</p>'
 

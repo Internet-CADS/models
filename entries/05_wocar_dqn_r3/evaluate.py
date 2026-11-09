@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Robustness evaluation of rev3 checkpoints (script version of the old notebook).
 
-For each group (vanilla_dqn / sa_dqn / wocar_dqn) in a run folder, evaluate every seed at
-  * "final": frame 2,000,000: the same frame for every run, no checkpoint selection
-  * "peak": the frame where the seed-mean mini-test return peaks (same rule as report.py)
-Both are evaluated by default (--frames final,peak); if a group's peak frame is the final frame it is evaluated once and shown as "final".
+For each group (vanilla_dqn / sa_dqn / wocar_dqn) in a run folder, evaluate every seed at the group's
+"peak" frame: the frame where the seed-mean mini-test return peaks (same rule as report.py). This is the default
+(--frames peak) and the only view the report shows. "final" (frame 2,000,000, --final-frame) and integer frames
+remain available through --frames but are not part of the report.
 Each (group, seed, frame) is one job: clean rollouts, certified action ratio (auto_LiRPA), and
 attack sweeps (random_linf / pgd / minbest / worst_q) over epsilon. Results are cached as JSON in
 <cache-dir> (default artifacts/eval_cache/<run name>/), and report.py reads them.
@@ -12,7 +12,7 @@ attack sweeps (random_linf / pgd / minbest / worst_q) over epsilon. Results are 
 Run from entries/05_wocar_dqn_r3/ (use the repo .venv):
     ../../.venv/bin/python evaluate.py artifacts/run_2 --episodes 100 --workers 6
 Smoke test:
-    ../../.venv/bin/python evaluate.py artifacts/run_2 --episodes 2 --epsilons 0,0.005 --attacks pgd --groups vanilla_dqn --seeds 1 --frames final
+    ../../.venv/bin/python evaluate.py artifacts/run_2 --episodes 2 --epsilons 0,0.005 --attacks pgd --groups vanilla_dqn --seeds 1 --frames peak
 """
 import argparse
 import hashlib
@@ -43,11 +43,18 @@ GROUP_CONFIG = {"vanilla_dqn": "config_highway_vanilla.json",
                 "wocar_dqn": "config_highway_wocar.json"}
 FINAL_FRAME = 2_000_000
 DEFAULT_EPSILONS = [0.0, 0.0025, 0.005, 0.0075, 0.01]   # training epsilon is 0.005
-DEFAULT_ATTACKS = ["pgd", "worst_q"]   # random_linf / minbest available via --attacks
+DEFAULT_ATTACKS = ["pgd", "worst_q", "minbest", "random_linf"]
 PGD_STEPS = 10
 
 
 # ----------------------------------------------------------------------------- job planning
+def discover_seeds(run_dir, group, seeds_arg):
+    """Seeds to evaluate: the --seeds list, or every model_<i> folder of the group."""
+    if seeds_arg:
+        return [int(x) for x in seeds_arg.split(",")]
+    return sorted(int(p.name.split("_")[1]) for p in (run_dir / group).glob("model_*") if p.is_dir() and p.name.split("_")[1].isdigit())
+
+
 def peak_frame(run_dir, group_dir):
     runs = report.load_group(run_dir / group_dir)
     if not runs:
@@ -247,8 +254,8 @@ def main():
     ap.add_argument("--attacks", default=",".join(DEFAULT_ATTACKS))
     ap.add_argument("--no-certify", action="store_true")
     ap.add_argument("--groups", default=",".join(GROUP_CONFIG))
-    ap.add_argument("--seeds", default="1,2,3")
-    ap.add_argument("--frames", default="final,peak", help="comma list of: final (2M), peak, or integer frames (default: both final and peak)")
+    ap.add_argument("--seeds", default=None, help="comma list of seeds; default: every model_<i> folder found for each group")
+    ap.add_argument("--frames", default="peak", help="comma list of: peak (default), final (2M), or integer frames")
     ap.add_argument("--final-frame", type=int, default=FINAL_FRAME, help="frame meant by 'final' (default 2,000,000; use e.g. 600000 for a pilot)")
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--force", action="store_true", help="recompute even if cached")
@@ -268,13 +275,13 @@ def main():
             if f == "peak":
                 pf = peak_frame(run_dir, g)
                 if pf:
-                    frames.setdefault(pf, "peak")
+                    frames[pf] = "peak"   # peak wins if it coincides with another requested frame
             elif f == "final":
                 frames.setdefault(args.final_frame, "final")
             else:
                 frames.setdefault(int(f), "custom")
         for frame, kind in sorted(frames.items()):
-            for seed in [int(x) for x in args.seeds.split(",")]:
+            for seed in discover_seeds(run_dir, g, args.seeds):
                 ckpt = run_dir / g / f"model_{seed}" / f"frame_{frame}.pth"
                 if not ckpt.is_file():
                     print(f"skip {g}#{seed}@{frame}: checkpoint missing", file=sys.stderr)
