@@ -11,7 +11,7 @@ In the commands below `python` means the repo venv's interpreter (Windows: `.ven
 - Never delete or move anything under any `artifacts/` folder. Never edit `train.py`, `upstream/` or the configs.
 - Do not touch `main`. **Never force-push anything.**
 - Commit with explicit paths only (never `git add -A` / `git add .`). Keep LF line endings. Commit trailer: `Co-Authored-By: <your model name> <noreply@anthropic.com>`.
-- **Do not push unless the user tells you to**, with two exceptions the user has authorised: the git operations in Step 1 (push `wocar_r3`, delete the branch `wocar_r2`), the monitor's automatic progress commits/pushes during a run (Step 3, and the extra-seeds batch below), and the final push of the extra-seeds results (last step of that batch). Any other push needs the user's go-ahead; at the end say what is committed and what is left to push.
+- **Do not push unless the user tells you to**, with two exceptions the user has authorised: the git operations in Step 1 (push `wocar_r3`, delete the branch `wocar_r2`), the monitor's automatic progress commits/pushes during a run (Step 3, and the extra-seeds batch in `docs/desktop_extra_seeds.md`), and the final push of the extra-seeds results described in that file. Any other push needs the user's go-ahead; at the end say what is committed and what is left to push.
 - Do not kill or restart training runs on your own (except as Step R says). The user has also authorised changing the CPU affinity and priority of the `train.py` processes as described in Step 3b, and nothing else about running processes. If something fails or looks wrong, stop and report it to the user.
 
 ## Step 0 — rev2 must be finished
@@ -104,33 +104,8 @@ Commit with explicit paths: the nine `train.log` files, `artifacts/eval_cache/ru
 ## Step 5 — message to the user
 Send: the headline comparison from the report at ε = 0.005 and 0.01 (vanilla vs SA-DQN vs WocaR: return and crash rate under PGD / worst-Q / MinBest / random noise), for the peak checkpoints, with the per-seed values and not only the means (seeds differ a lot in this kind of training), anything unusual (failed or restarted runs, a run whose mini-test return collapsed late in training), what is committed locally, and what is left to push.
 
-## Extra seeds batch: seeds 4 and 5 on the desktop (authorised by the user)
-Context: the first nine runs (seeds 1–3, 2M frames, results already on the remote) are done. For better statistics the user wants more seeds: **seeds 4 and 5 run on this desktop** (6 runs: 3 models × 2 seeds, about 10 h) and seeds 6 and 7 on the user's laptop. Same configs, same run root `artifacts/run_2`, no config changes. You run the orchestrator and the monitor yourself and push the results when the runs are done. You do **not** evaluate (the laptop does that afterwards). All rules above apply.
-
-**E0 — preconditions.** No `train.py` process is running and the machine is otherwise idle. `git fetch origin`, `git switch wocar_r3`, `git pull` (if git complains about local changes to the generated `entries/05_wocar_dqn_r3/PROGRESS.md` / `progress.json`, run `git checkout -- entries/05_wocar_dqn_r3/PROGRESS.md entries/05_wocar_dqn_r3/progress.json` and retry). Then `python entries/05_wocar_dqn_r3/run_orchestrator.py --dry-run --concurrent --seeds 4,5` must list 6 commands (`model_4`, `model_5` for each of the three groups) and end with `DRY RUN OK`.
-
-**E1 — start.**
-```
-python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent --seeds 4,5 --no-commit
-python entries/05_wocar_dqn_r3/monitoring.py --seeds 4,5        # second terminal
-```
-All six runs start together. The monitor commits only `entries/05_wocar_dqn_r3/PROGRESS.md` and `progress.json` every 15 minutes and pushes `wocar_r3` (authorised; if a push is rejected because the remote moved, it rebases and retries by itself). If the machine or shell restarts, run the same orchestrator command again (it reattaches to live runs and skips finished ones).
-
-**E2 — one thread per core (Windows; no priority change needed).** Within the first minutes, restrict the six trainers to logical processors 0, 2, 4, 6, 8, 10 so that no two share a physical core (same assumptions and checks as Step 3b: first confirm the CPU shows 6 cores / 12 logical processors, otherwise skip and tell the user):
-```
-Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'train\.py' } | ForEach-Object { (Get-Process -Id $_.ProcessId).ProcessorAffinity = 0x555 }
-```
-About 10 minutes later read the last `speed: ... frames/sec` in each `train.log`: expect roughly 55–65 frames/s per run (one full core each) and about 10 h in total. If runs are at or below ~40 frames/s, tell the user. Undo with `0xFFF`.
-
-**E3 — when the orchestrator says `6/6 runs finished`.** Stop the monitor (Ctrl-C; it writes a final snapshot). Then publish the results of seeds 4 and 5 only (explicit pathspecs; the quotes matter; never `git add -A`):
-```
-git add -- "entries/05_wocar_dqn_r3/artifacts/run_2/*/model_[45]/train.log" "entries/05_wocar_dqn_r3/artifacts/run_2/*/model_[45]/frame_*.pth" "entries/05_wocar_dqn_r3/artifacts/run_2/*/model_[45]/frame_2000000_losses.npy" "entries/05_wocar_dqn_r3/artifacts/run_2/*/model_[45]/frame_2000000_rewards.npy" "entries/05_wocar_dqn_r3/artifacts/run_2/*/model_[45]/tensorboard/*"
-git commit -m "data(rev3): extra seeds 4 and 5 (desktop): logs, tensorboard, checkpoints, final losses/rewards"   # + the Co-Authored-By trailer
-git pull --rebase
-git push origin wocar_r3
-```
-Check `git diff --name-only origin/wocar_r3..HEAD` before the push: only files under `entries/05_wocar_dqn_r3/artifacts/run_2/*/model_4|model_5/` (plus the monitor's progress files); no other `.npy` (the cumulative `frame_<N>_losses.npy` / `_rewards.npy` files must not be added). The laptop may have pushed seeds 6 and 7 meanwhile; they are different files, so the rebase is expected to be clean. If it conflicts only in `PROGRESS.md` / `progress.json` (generated), keep either version, `git add` them and `git rebase --continue`; any other conflict: stop and report. Normal push only, never `--force`.
-Then tell the user: the commit hash, the final frame of each run, the speeds you saw, and anything unusual (failed or restarted runs, a collapsed run).
+## Extra seeds batch (seeds 4 and 5)
+This is a separate, self-contained task with its own file: `docs/desktop_extra_seeds.md` (https://github.com/Internet-CADS/models/blob/wocar_r3/docs/desktop_extra_seeds.md). It is not part of the steps above; if you were pointed at that file, follow only that file.
 
 ## Where things are
 `entries/05_wocar_dqn_r3/README.md` (flags, details) · `docs/rev3.md` (changes, decisions) · `docs/deviations.md` (paper/authors' code differences).

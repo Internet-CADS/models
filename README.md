@@ -20,6 +20,7 @@ Branches: `wocar_r2` is rev2 (the training machine's monitor pushes progress com
 | `docs/wocar_context.md` | background on the three methods, the highway config and the four past bugs (historical paths) |
 | `docs/rev2_verification/` | static verification of the training code against the paper, removal of the safety-score selection, smoke-test results (the training code is shared by rev2 and rev3) |
 | `docs/archive/` | old agent briefs, handoffs and runbooks, kept for history |
+| `docs/desktop_extra_seeds.md` | self-contained task for the desktop agent: run the extra seeds 4 and 5, then push the results |
 | `docs/r3_agent_runbook.md` | step-by-step instructions for the agent that runs rev3 on the training desktop (train, evaluate) |
 | `docs/rev3.md` | every rev3 change, status, decisions and next steps |
 | `docs/deviations.md` | where our setup differs from the paper and the authors' code, and the paper's notation slips |
