@@ -18,7 +18,7 @@ blended-argmax bootstrap, hard target copies, ε-greedy decaying to 0) are not l
 | 8 | w(s) is in the paper but absent from RA-DQN; our code has it (added by the project). | Informational |
 | 9 | Gradient clipping at 10 is active (F1 fix; upstream's was a no-op). | Kept |
 | 10 | Domain adaptation from Atari (batch 64, lr 1.25e-4, buffer 50k, replay start 1k, ε-greedy decay over 50k frames; Atari defaults 32 / 6.25e-5 / 200k / 50k / 1.5M). Relevance not examined. | Informational |
-| 11 | 4 seeds × 100 episodes (paper: median of 30 agents, 1,000 episodes). | Compute-limited |
+| 11 | 3 seeds × 100 episodes (paper: median of 30 agents, 1,000 episodes). | Compute-limited |
 | 12 | ε ramp: RA-DQN ramps over the whole run (≥3M frames); ours 100k–600k. | Kept (gives the regulariser time without a huge budget) |
 
 ## B. Slips in the paper (the authors' intended meaning)

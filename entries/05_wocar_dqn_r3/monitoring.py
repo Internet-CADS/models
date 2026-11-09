@@ -4,11 +4,11 @@
 Adapted from watch_progress.py (kept in git history). Standard library only. Independent of run_orchestrator.py:
 it only polls the train.log files (incrementally, by byte offset) and never signals or touches any trainer process.
 
-    python entries/05_wocar_dqn_r3/monitoring.py                 # production view (artifacts/run_1, 2M frames)
+    python entries/05_wocar_dqn_r3/monitoring.py                 # production view (artifacts/run_2, 2M frames)
     python entries/05_wocar_dqn_r3/monitoring.py --smoke         # artifacts/smoke/orch_flat, 3k frames
     python entries/05_wocar_dqn_r3/monitoring.py --once          # render + publish once, exit
 
-Display: 12 rows grouped vanilla_dqn / sa_dqn / wocar_dqn, each
+Display: 9 rows grouped vanilla_dqn / sa_dqn / wocar_dqn, each
     run  [####------]  %  frames / total  frames/sec (smoothed)  ETA  status      (queued|training|stalled|done|failed)
 Publishing: every --publish-minutes (default 15) and on exit, write PROGRESS.md and progress.json into this entry folder
 (rev3: NOT the repo root, which rev2's monitor owns; --progress-dir overrides) and commit ONLY those two files (`git commit --only`), then push the branch to origin (`--no-push` to disable; a failed push is retried on the next publish). Nothing is written or committed if the state is unchanged.
@@ -26,7 +26,7 @@ from pathlib import Path
 ENTRY = Path(__file__).resolve().parent
 TARGET_FRAMES = 2_000_000
 SMOKE_FRAMES = 3_000
-N_RUNS = 4
+N_RUNS = 3
 BAR_WIDTH = 20
 
 GROUPS = [("vanilla_dqn", "vanilla"), ("sa_dqn", "sadqn"), ("wocar_dqn", "wocar")]
@@ -338,7 +338,7 @@ def acquire_lock(repo):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--run-root", help="default artifacts/run_1 (artifacts/smoke/orch_flat with --smoke)")
+    ap.add_argument("--run-root", help="default artifacts/run_2 (artifacts/smoke/orch_flat with --smoke)")
     ap.add_argument("--smoke", action="store_true")
     ap.add_argument("--target-frames", type=int)
     ap.add_argument("--progress-dir", help="where PROGRESS.md/progress.json are written (default: this entry folder; artifacts/smoke with --smoke)")
@@ -361,7 +361,7 @@ def main():
         pass
 
     target = args.target_frames or (SMOKE_FRAMES if args.smoke else TARGET_FRAMES)
-    root = Path(args.run_root) if args.run_root else ENTRY / "artifacts" / ("smoke/orch_flat" if args.smoke else "run_1")
+    root = Path(args.run_root) if args.run_root else ENTRY / "artifacts" / ("smoke/orch_flat" if args.smoke else "run_2")
     if not root.is_absolute():
         root = (Path.cwd() / root).resolve()
     repo = Path(args.repo_root).resolve() if args.repo_root else repo_root(ENTRY)
