@@ -41,6 +41,28 @@ Notes
 - 4 seeds per group (12 runs = all 12 threads of the desktop; costs some speed per run); evaluate two views by default: the final frame of every run (same frame, no selection) and each group's peak-of-mean frame (`evaluate.py --frames final,peak`).
 - WocaR: worst-case loss on at `worst_kappa_end` 0.5 (RA-DQN default; upstream README advises 1.0 because of instability), `worst_ratio` 0.1, `worst_eps_end` 0.001. See `deviations.md`.
 
+## Compute (measured on 2026-11-09)
+Simulator speed, one thread, random actions, no network (Mac; episode length does not matter, vehicle count does):
+
+| vehicles | env steps/s | vs rev2 (10 vehicles) |
+|---|---|---|
+| 10 | 129 | 1.0× |
+| 15 | 88 | 1.5× slower |
+| 18 | 72 | 1.8× slower |
+| 20 | 63 | 2.1× slower |
+| 25 | 47 | 2.7× slower |
+
+First snapshot of the real run (12 concurrent runs, 25 vehicles, desktop with 6 cores / 12 threads): about 20 frames/s per run (rev2: 93 / 77 / 72 for vanilla / SA / WocaR with 6 runs), projected ≈ 28 h. The total (~240 frames/s) is about what 6 physical cores give, so hyperthreads added nothing visible and wall time scales with the number of runs.
+Rough projections from this (estimates; per-run speed alone ≈ 1 / (simulator time + ~5 ms of training) and capacity ≈ 6 runs' worth):
+
+| runs \ vehicles | 25 | 20 | 18 | 15 | 10 |
+|---|---|---|---|---|---|
+| 12 | ~29 h | ~23 h | ~21 h | ~18 h | ~14 h |
+| 9 | ~22 h | ~17 h | ~16 h | ~13 h | ~10 h |
+| 6 | ~15 h | ~12 h | ~11 h | ~9 h | ~7 h |
+
+The earlier plan said 9–12 h for 12 runs; that came from rev2's speeds and ignored the simulator cost of the denser traffic.
+
 ## Next steps
 1. Make sure the rev2 runs on the training machine are finished; the machine pulls `wocar_r3`.
 2. Full run: `run_orchestrator.py --concurrent` (all 12 runs at once), `monitoring.py` in a second window. Then `evaluate.py` and `report.py`, and look at the results. Step-by-step: `r3_agent_runbook.md`.

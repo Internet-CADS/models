@@ -30,7 +30,7 @@ Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scr
    python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 12 at once (one thread each; uses all 12 threads of a 6-core CPU)
 2) python entries/05_wocar_dqn_r3/monitoring.py                       # window 2: live bars + PROGRESS.md/progress.json (in this folder)
 ```
-Rough wall time from rev2 speeds (vanilla ~93, SA ~77, WocaR ~72 frames/s at 6 concurrent): vanilla ≈ 6 h, SA-DQN ≈ 7 h, WocaR ≈ 8 h per run. Sequential batches ≈ 20 h; `--concurrent` ≈ 9–12 h (with 12 runs every physical core carries two runs via hyperthreading, so each run is slower than in rev2; estimate).
+Measured speed of the real run (12 concurrent runs, 25 vehicles): about 20 frames/s per run, i.e. about 28 h for all 12 (rev2 ran 72–93 frames/s with 6 runs and 10 vehicles). Two causes: the 25-vehicle simulator is ~2.7× slower per step, and hyperthreads added no throughput (total ≈ 240 frames/s ≈ 6 cores' worth), so wall time scales with the number of runs. See `../../docs/rev3.md` (Compute).
 
 Orchestrator flags: `--dry-run`, `--resume` (reattach / skip finished; always on), `--retry N`, `--smoke` (3k frames into `artifacts/smoke/orch_flat`),
 `--groups a,b`, `--seeds 1,2`, `--concurrent`, `--target-frames N`, `--run-root DIR`, `--no-commit`.
