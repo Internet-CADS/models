@@ -9,7 +9,7 @@ Robust DQN on `highway-env` (vanilla DQN vs SA-DQN vs WocaR-DQN). Each experimen
 | `entries/02_dqn_obs_noise_training` | DQN trained with observation noise, comparison notebook | done |
 | `entries/03_wocar_dqn` | first vanilla / SA-DQN / WocaR-DQN baseline (single seed per model, 4M frames) | done |
 | `entries/04_wocar_dqn_r2` | rev2: 3 models × 6 seeds, 4M frames, plus the script-based evaluation (`evaluate.py`, `report.py`, `visualize_perturbation.py`) and its cached results | trained on the training machine (WocaR was still finishing when last checked); peak-checkpoint evaluation done |
-| `entries/05_wocar_dqn_r3` | rev3: 3 models × 4 seeds, 2M frames, denser traffic, stronger robust training; same evaluation scripts with rev3 defaults | prepared and smoke-tested, **not yet trained** — start with its `README.md` |
+| `entries/05_wocar_dqn_r3` | rev3: 3 models × 3 seeds, 2M frames, denser traffic (15 vehicles), stronger robust training; same evaluation scripts with rev3 defaults | prepared and smoke-tested, **not yet trained** — start with its `README.md` |
 
 Branches: `wocar_r2` is rev2 (the training machine's monitor pushes progress commits there); `wocar_r3` carries rev3 work.
 

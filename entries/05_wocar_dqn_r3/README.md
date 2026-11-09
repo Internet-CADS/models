@@ -7,15 +7,15 @@ This folder is a copy of `04_wocar_dqn_r2` (code) with changed configs; see `../
 Status: prepared and smoke-tested, **nothing has been trained yet**. Production runs are started by you (see Launch).
 
 ## What runs
-12 runs: 3 model types × 4 seeds, 2,000,000 frames each, checkpoint + mini-test every 50,000 frames (40 each).
+9 runs: 3 model types × 3 seeds, 2,000,000 frames each, checkpoint + mini-test every 50,000 frames (40 each).
 
 | model | config | run dirs |
 |---|---|---|
-| vanilla DQN | `config_highway_vanilla.json` | `artifacts/run_1/vanilla_dqn/model_{1..4}/` |
-| SA-DQN | `config_highway_sadqn.json` | `artifacts/run_1/sa_dqn/model_{1..4}/` |
-| WocaR-DQN | `config_highway_wocar.json` | `artifacts/run_1/wocar_dqn/model_{1..4}/` |
+| vanilla DQN | `config_highway_vanilla.json` | `artifacts/run_2/vanilla_dqn/model_{1..3}/` |
+| SA-DQN | `config_highway_sadqn.json` | `artifacts/run_2/sa_dqn/model_{1..3}/` |
+| WocaR-DQN | `config_highway_wocar.json` | `artifacts/run_2/wocar_dqn/model_{1..3}/` |
 
-Key settings (full table in `../../docs/rev3.md`): env = 25 other vehicles (obs shows 10 nearest), 60-step episodes; robust runs use ε = 0.005, κ = 0.02,
+Key settings (full table in `../../docs/rev3.md`): env = 15 other vehicles (rev2: 10; 25 was tried first and was too slow), 60-step episodes; robust runs use ε = 0.005, κ = 0.02,
 ε ramp over frames 100k–600k; WocaR additionally `worst_ratio` 0.1, `worst_eps_end` 0.001, `worst_kappa_end` 0.5 (worst-case loss **on**, RA-DQN default), `worst_schedule` 1,000,000.
 Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, cwd = this folder.
 
@@ -26,11 +26,11 @@ Trainers run with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREA
 ## Launch (production)
 Run from the repo root inside `tmux`, with the project venv (Windows: `.venv\Scripts\python.exe`, macOS/Linux: `.venv/bin/python`).
 ```
-1) python entries/05_wocar_dqn_r3/run_orchestrator.py                 # window 1: launches the 12 runs (4 per batch, batches one after another)
-   python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 12 at once (one thread each; uses all 12 threads of a 6-core CPU)
+1) python entries/05_wocar_dqn_r3/run_orchestrator.py                 # window 1: launches the 9 runs (3 per batch, batches one after another)
+   python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent    # …or all 9 at once (one thread each; the desktop has 6 cores / 12 threads)
 2) python entries/05_wocar_dqn_r3/monitoring.py                       # window 2: live bars + PROGRESS.md/progress.json (in this folder)
 ```
-Measured speed of the real run (12 concurrent runs, 25 vehicles): about 20 frames/s per run, i.e. about 28 h for all 12 (rev2 ran 72–93 frames/s with 6 runs and 10 vehicles). Two causes: the 25-vehicle simulator is ~2.7× slower per step, and hyperthreads added no throughput (total ≈ 240 frames/s ≈ 6 cores' worth), so wall time scales with the number of runs. See `../../docs/rev3.md` (Compute).
+First attempt (12 concurrent runs, 25 vehicles, aborted): about 20 frames/s per run, about 28 h for all 12 (rev2 ran 72–93 frames/s with 6 runs and 10 vehicles). Two causes: the 25-vehicle simulator is ~2.7× slower per step, and hyperthreads added no throughput (total ≈ 240 frames/s ≈ 6 cores' worth), so wall time scales with the number of runs. Current setup (9 runs, 15 vehicles): expected about 40 frames/s per run and about 13 h. See `../../docs/rev3.md` (Compute).
 
 Orchestrator flags: `--dry-run`, `--resume` (reattach / skip finished; always on), `--retry N`, `--smoke` (3k frames into `artifacts/smoke/orch_flat`),
 `--groups a,b`, `--seeds 1,2`, `--concurrent`, `--target-frames N`, `--run-root DIR`, `--no-commit`.
@@ -41,8 +41,8 @@ Monitoring flags: `--smoke`, `--publish-minutes M`, `--stall-minutes M`, `--refr
 ## Evaluate
 From this folder, with the repo venv. Evaluation covers two views by default: the **final frame (2,000,000) of every run** (same frame for all, no selection) and each group's **peak-of-mean frame** (the frame where the seed-mean mini-test return is highest, chosen on the mini-test data and evaluated on fresh episodes). The final view shows whether training stayed stable; the peak view shows how robust the best policies are. If a group's peak is its final frame, it is evaluated once and shown as "final".
 ```
-python evaluate.py artifacts/run_1 --workers 6      # defaults: seeds 1-4, frames final (2M) + peak, 100 episodes, PGD + worst-Q, eps 0/0.0025/0.005/0.0075/0.01, certification
-python report.py artifacts/run_1                    # -> artifacts/run_1/report.html: mini-test curves per group + robustness section
+python evaluate.py artifacts/run_2 --workers 6      # defaults: seeds 1-3, frames final (2M) + peak, 100 episodes, PGD + worst-Q, eps 0/0.0025/0.005/0.0075/0.01, certification
+python report.py artifacts/run_2                    # -> artifacts/run_2/report.html: mini-test curves per group + robustness section
 python visualize_perturbation.py -o perturbation.html   # model-free view of what epsilon means (reads eps/env from config_highway_sadqn.json)
 ```
 `evaluate.py` caches one JSON per (group, seed, frame, settings) in `artifacts/eval_cache/<run name>/` and skips cached jobs; extra epsilons can be added later
@@ -56,7 +56,7 @@ for more attacks. Per-job cost is dominated by the attacks (about 13 min per run
 - `python run_orchestrator.py --dry-run` on the training machine, then the full run.
 
 ## Notes
-- Use `flat_run_dir=true` (the orchestrator does) so each run writes straight into `artifacts/run_1/<group>/model_<i>/`; a manual `train.py --config …` keeps the nested default.
+- Use `flat_run_dir=true` (the orchestrator does) so each run writes straight into `artifacts/run_2/<group>/model_<i>/`; a manual `train.py --config …` keeps the nested default.
 - `train.py` ramps `worst_eps`, `worst_ratio` and `worst_kappa` together with `coeff = (frame − schedule_start)/worst_schedule`; they cannot be delayed independently without a code change.
 - ε-greedy exploration: 1.0 → 0.05 over frames 1k→51k, then linearly to 0 at the end (`act_epsilon_decay_zero: true`, upstream behaviour). Gradient clipping at 10 is active.
 - The verification notes for the (shared) training code are in `../../docs/rev2_verification/`; `../../docs/rev3.md` has every rev3 change plus status and next steps; `../../docs/deviations.md` lists the differences from the paper and the authors' code.

@@ -10,9 +10,9 @@ attack sweeps (random_linf / pgd / minbest / worst_q) over epsilon. Results are 
 <cache-dir> (default artifacts/eval_cache/<run name>/), and report.py reads them.
 
 Run from entries/05_wocar_dqn_r3/ (use the repo .venv):
-    ../../.venv/bin/python evaluate.py artifacts/run_1 --episodes 100 --workers 6
+    ../../.venv/bin/python evaluate.py artifacts/run_2 --episodes 100 --workers 6
 Smoke test:
-    ../../.venv/bin/python evaluate.py artifacts/run_1 --episodes 2 --epsilons 0,0.005 --attacks pgd --groups vanilla_dqn --seeds 1 --frames final
+    ../../.venv/bin/python evaluate.py artifacts/run_2 --episodes 2 --epsilons 0,0.005 --attacks pgd --groups vanilla_dqn --seeds 1 --frames final
 """
 import argparse
 import hashlib
@@ -247,7 +247,7 @@ def main():
     ap.add_argument("--attacks", default=",".join(DEFAULT_ATTACKS))
     ap.add_argument("--no-certify", action="store_true")
     ap.add_argument("--groups", default=",".join(GROUP_CONFIG))
-    ap.add_argument("--seeds", default="1,2,3,4")
+    ap.add_argument("--seeds", default="1,2,3")
     ap.add_argument("--frames", default="final,peak", help="comma list of: final (2M), peak, or integer frames (default: both final and peak)")
     ap.add_argument("--final-frame", type=int, default=FINAL_FRAME, help="frame meant by 'final' (default 2,000,000; use e.g. 600000 for a pilot)")
     ap.add_argument("--workers", type=int, default=4)

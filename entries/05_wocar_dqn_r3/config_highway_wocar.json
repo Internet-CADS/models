@@ -5,7 +5,7 @@
   "name_suffix": "_wocar",
   "env_config": {
     "lanes_count": 4,
-    "vehicles_count": 25,
+    "vehicles_count": 15,
     "duration": 60,
     "simulation_frequency": 5,
     "policy_frequency": 1,

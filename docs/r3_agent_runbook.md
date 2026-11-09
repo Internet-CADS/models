@@ -3,7 +3,7 @@
 This file: https://github.com/Internet-CADS/models/blob/wocar_r3/docs/r3_agent_runbook.md  
 If your clone is on another branch (e.g. `wocar_r2`) the file is not in your working tree yet; read it with `git fetch origin && git show origin/wocar_r3:docs/r3_agent_runbook.md`.
 
-Goal: train rev3 (`entries/05_wocar_dqn_r3/`, branch `wocar_r3`): all 12 runs (vanilla / SA-DQN / WocaR × seeds 1–4, 2M frames each), then evaluate. No pilot and no go/no-go gate: run it, evaluate it, report the results. Read `docs/rev3.md` for what rev3 is and why; this file is the step-by-step.
+Goal: train rev3 (`entries/05_wocar_dqn_r3/`, branch `wocar_r3`): all 9 runs (vanilla / SA-DQN / WocaR × seeds 1–3, 2M frames each), then evaluate. No pilot and no go/no-go gate: run it, evaluate it, report the results. Read `docs/rev3.md` for what rev3 is and why; this file is the step-by-step.
 
 In the commands below `python` means the repo venv's interpreter (Windows: `.venv\Scripts\python.exe`, macOS/Linux: `.venv/bin/python`). Run commands from the repo root unless a step says `cd entries/05_wocar_dqn_r3` (evaluation scripts **must** run from inside that folder). Use `tmux`/separate terminals for anything long; a long job must not die with your shell.
 
@@ -58,23 +58,33 @@ python entries/05_wocar_dqn_r3/run_orchestrator.py --dry-run
 ```
 The dry run must end with `DRY RUN OK`.
 
-## Step 3 — run the training (all 12 at once)
+## Step R — only if you already started the run with 25 vehicles (authorised by the user)
+The first launch used 25 vehicles in `artifacts/run_1` and is too slow (about 28 h). **The user has authorised stopping it (all 12 runs, including the seed-4 ones) and restarting once with 15 vehicles and 3 seeds (9 runs).** If your runs are already writing to `entries/05_wocar_dqn_r3/artifacts/run_2` with 15 vehicles, skip this step.
+1. Stop the monitor and the orchestrator (Ctrl-C in their windows). Then stop all trainer processes (only rev3's `train.py` processes should exist; rev2 is finished):
+   - Windows PowerShell: `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'train\.py' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }`
+   - macOS/Linux: `pkill -f train.py`
+   Check that no `train.py` process is left (Task Manager / `tasklist`).
+2. Leave `entries/05_wocar_dqn_r3/artifacts/run_1` exactly as it is (the aborted attempt): do not delete, move or commit it.
+3. `git pull`. Check that the environment `vehicles_count` is now 15 in all three configs: `grep -n vehicles_count entries/05_wocar_dqn_r3/config_highway_*.json` (each file shows 15 for the environment and 10 for the observation block).
+4. Go to Step 3: it starts the new run in `artifacts/run_2` (the default run root now).
+
+## Step 3 — run the training (all 9 at once)
 ```
 python entries/05_wocar_dqn_r3/run_orchestrator.py --concurrent --no-commit
 ```
-All twelve runs start together. **Measured at the start of the real run:** about 20 frames/s per run, projected at roughly 28 h for all 12 (the earlier estimate of 9–12 h was wrong: the 25-vehicle traffic makes the simulator ~2.7× slower per step than rev2's 10 vehicles, and the 12 hyperthreaded runs together gave no more throughput than the 6 physical cores; see `docs/rev3.md`, section Compute). A few minutes after the start, look at the `speed:` value in a `train.log` and tell the user. The machine will be fully loaded, so avoid other heavy programs.
-Start the monitor in a second terminal: `python entries/05_wocar_dqn_r3/monitoring.py`. Every 15 minutes it writes `entries/05_wocar_dqn_r3/PROGRESS.md` and `progress.json` (not the repo-root files), commits **only those two files** and pushes `wocar_r3` (these progress pushes are authorised). If a push is rejected because the remote branch moved (the user may push from another machine), the monitor rebases onto it and retries by itself; if that ever fails it aborts cleanly and tries again at the next publish. Leave it running until all 12 runs are done. Note that its push sends every commit that exists locally on `wocar_r3` at that moment.
-Runs land in `entries/05_wocar_dqn_r3/artifacts/run_1/<vanilla_dqn|sa_dqn|wocar_dqn>/model_<1..4>/`. If the machine or shell restarts, run the same command again: it reattaches to live runs and skips finished ones.
+All nine runs start together. Expected: about 40 frames/s per run and about 13 h in total (15-vehicle traffic; the hyperthreaded runs together give about 6 cores' worth of throughput, so time scales with the number of runs). A few minutes after the start, look at the `speed:` value in a `train.log` and tell the user; if it is well below ~35 frames/s, say so. (A first attempt with 25 vehicles and 12 runs ran at only ~20 frames/s per run, ~28 h projected, and was stopped; see `docs/rev3.md`, section Compute.)
+Start the monitor in a second terminal: `python entries/05_wocar_dqn_r3/monitoring.py`. Every 15 minutes it writes `entries/05_wocar_dqn_r3/PROGRESS.md` and `progress.json` (not the repo-root files), commits **only those two files** and pushes `wocar_r3` (these progress pushes are authorised). If a push is rejected because the remote branch moved (the user may push from another machine), the monitor rebases onto it and retries by itself; if that ever fails it aborts cleanly and tries again at the next publish. Leave it running until all 9 runs are done. Note that its push sends every commit that exists locally on `wocar_r3` at that moment.
+Runs land in `entries/05_wocar_dqn_r3/artifacts/run_2/<vanilla_dqn|sa_dqn|wocar_dqn>/model_<1..3>/`. If the machine or shell restarts, run the same command again: it reattaches to live runs and skips finished ones.
 
 ## Step 4 — evaluate and report
-When the orchestrator summary says `12/12 runs finished`, first stop the monitor (Ctrl-C; it writes a final snapshot) so that nothing pushes automatically from here on, then:
+When the orchestrator summary says `9/9 runs finished`, first stop the monitor (Ctrl-C; it writes a final snapshot) so that nothing pushes automatically from here on, then:
 ```
 cd entries/05_wocar_dqn_r3
-python evaluate.py artifacts/run_1 --workers 12       # one single-threaded job per run; lower it if other programs are using the CPU
-python report.py artifacts/run_1
+python evaluate.py artifacts/run_2 --workers 9        # one single-threaded job per run; lower it if other programs are using the CPU
+python report.py artifacts/run_2
 ```
-This evaluates two views: the final checkpoint (frame 2,000,000) of every run (same frame for all, no selection), and each group's peak-of-mean checkpoint (the frame where the seed-mean mini-test return is highest; the script picks it from the logs). 12 jobs per view (up to 24). PGD and worst-Q at ε 0, 0.0025, 0.005, 0.0075, 0.01, 100 episodes, plus certification. Output: `artifacts/run_1/report.html`.
-Commit with explicit paths: the twelve `train.log` files, `artifacts/eval_cache/run_1/`, `artifacts/run_1/report.html`. Do **not** commit checkpoints (`*.pth`) or `.npy` files without asking.
+This evaluates two views: the final checkpoint (frame 2,000,000) of every run (same frame for all, no selection), and each group's peak-of-mean checkpoint (the frame where the seed-mean mini-test return is highest; the script picks it from the logs). 9 jobs per view (up to 18). PGD and worst-Q at ε 0, 0.0025, 0.005, 0.0075, 0.01, 100 episodes, plus certification. Output: `artifacts/run_2/report.html`.
+Commit with explicit paths: the nine `train.log` files, `artifacts/eval_cache/run_2/`, `artifacts/run_2/report.html`. Do **not** commit checkpoints (`*.pth`) or `.npy` files without asking.
 
 ## Step 5 — message to the user
 Send: the headline comparison from the report at ε = 0.005 and 0.01 (vanilla vs SA-DQN vs WocaR: return and crash rate under PGD / worst-Q), for both views (final frame and peak frame) with the per-seed values and not only the means (seeds differ a lot in this kind of training), anything unusual (failed or restarted runs, a run whose mini-test return collapsed late in training), what is committed locally, and what is left to push.
