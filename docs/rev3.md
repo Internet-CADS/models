@@ -63,6 +63,17 @@ Rough projections from this (estimates; per-run speed alone ≈ 1 / (simulator t
 
 The earlier plan said 9–12 h for 12 runs; that came from rev2's speeds and ignored the simulator cost of the denser traffic.
 
+**Scheduling (estimates).** With 9 jobs on 12 threads, three cores carry one job and three carry two; a shared core gives each job about half speed. Approximate CPU time per run at 15 vehicles (from rev2 speeds): vanilla ~8 h, SA-DQN ~9.3 h, WocaR ~9.8 h; a pair on one core finishes after the sum of its two jobs.
+
+| Setup | WocaR done | All done |
+|---|---|---|
+| default OS placement | ~10 h if alone, 17–19 h if paired | ~17–19 h |
+| best static pinning (WocaR alone, others paired) | ~9.8 h | ~17.3 h |
+| one thread per core (affinity 0x555), fair time-slicing | ~13.8 h | ~13.8 h |
+| the same + WocaR at above-normal priority | ~10 h | ~14 h |
+
+The runbook (Step 3b) applies the last row. It assumes hyperthreads add no throughput (inferred from the first snapshot of the 12-run attempt) and adjacent-pair numbering of logical processors.
+
 **Decision:** the first launch (25 vehicles, 12 runs, `artifacts/run_1`) was stopped after about 40 minutes at ~20 frames/s per run (~28 h projected). It was restarted with 15 vehicles and 9 runs (3 seeds) in `artifacts/run_2` (~13 h projected, ~40 frames/s per run expected). `artifacts/run_1` is kept untouched as the aborted attempt and is not used for any result.
 
 ## Next steps
