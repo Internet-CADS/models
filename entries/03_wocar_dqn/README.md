@@ -19,8 +19,7 @@ This entry trains a WocaR-DQN agent on `highway-v0` using the SA-DQN robust trai
   - `config_highway_wocar.json` (robust WocaR), `config_highway_sadqn.json` (SA-DQN baseline),
     `config_highway_vanilla.json` (non-robust vanilla DQN baseline) — `env_type: highway`,
     `DiscreteMetaAction`, normalized `Kinematics` (10 vehicles, 5 features).
-  - `artifacts/highway-v0_wocar/frame_2450000.pth` — 2.45 M-frame pretrained checkpoint, stored like
-    `entries/01_highway_dqn/artifacts/model.zip` (not under `upstream/`).
+  - `artifacts/highway-v0_wocar/frame_2450000.pth` — 2.45 M-frame pretrained checkpoint (not under `upstream/`).
 
 - **Patched files (same name as upstream, with header `# PATCHED vs upstream/...`):**
   `train.py`, `models.py`, `test.py`, `utils.py`, `my_replay_buffer.py`, `common/wrappers.py`,
