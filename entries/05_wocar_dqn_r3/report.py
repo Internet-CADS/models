@@ -18,7 +18,7 @@ from pathlib import Path
 
 GROUPS = [("vanilla_dqn", "Vanilla DQN"), ("sa_dqn", "SA-DQN"), ("wocar_dqn", "WocaR-DQN")]
 FRAME_RE = re.compile(r"^frame (\d+)/(\d+)")
-TEST_RE = re.compile(r"this test avg reward:\s*(\S+),\s*crash rate:\s*(\S+)")
+TEST_RE = re.compile(r"this test avg reward:\s*(\S+),\s*crash rate:\s*([\d.]+)")   # rev1 rows continue with ", safety score: ..."
 SEED_COLORS = ["#4e79a7", "#f28e2b", "#59a14f", "#b07aa1", "#9c755f", "#76b7b2", "#edc948", "#e377c2"]
 MEAN_COLOR = "#e15759"
 
@@ -161,7 +161,8 @@ def sweep_stats(payloads, method, key):
     return [(e, *_ms(v)) for e, v in sorted(by_eps.items())]
 
 
-def eps_chart(title, series, ylabel, ylim=None, pct=False, train_eps=TRAIN_EPS):
+def eps_chart(title, series, ylabel, ylim=None, pct=False, train_eps=None):
+    train_eps = TRAIN_EPS if train_eps is None else train_eps
     """series: [(label, color, [(eps, mean, std)], dashed)]; x is categorical (evenly spaced epsilons)."""
     W, H, L, R, T, B = 330, 250, 46, 10, 26, 44
     eps_all = sorted({e for _, _, pts, _ in series for e, _, _ in pts})
@@ -217,6 +218,8 @@ def robustness_section(ev, kind):
         desc.append(f"{label}: frame {frame:,} ({len(pl)} seeds, {d['settings']['episodes']} episodes)")
     fr0 = next(iter(ev[(present[0][0], kind)].values()))["frame"]
     title = "Peak-of-mean checkpoint" if kind == "peak" else f"Final checkpoint ({fr0 / 1e6:g}M frames)"
+    custom = next(iter(ev[(present[0][0], kind)].values())).get("section_title")   # e.g. rev1: checkpoints picked by safety score
+    title = custom or title
     sec = [f'<h1 class="sect">Robustness &mdash; {title}</h1><p class="sub">{"; ".join(desc)}. '
            f'Lines = mean over seeds, band = &plusmn;1 std over seeds. Evaluated on episode seeds 0&ndash;N&minus;1 (not the mini-test seeds).</p>']
 
@@ -302,12 +305,21 @@ h1.sect{font-size:20px;margin:36px 0 4px;padding-top:16px;border-top:1px solid v
 
 
 def main():
+    global TRAIN_EPS, TOTAL_FRAMES, EXPECTED_SEEDS
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir", type=Path)
     ap.add_argument("-o", "--output", type=Path, default=None)
     ap.add_argument("--eval-dir", type=Path, default=None,
                     help="evaluate.py cache (default: artifacts/eval_cache/<run name> next to this script)")
+    ap.add_argument("--train-eps", type=float, default=None, help=f"training epsilon of the revision (default {TRAIN_EPS:g}, rev3); tables are shown at it and at 2x")
+    ap.add_argument("--total-frames", type=int, default=None, help=f"training length in frames (default {TOTAL_FRAMES:,}, rev3)")
+    ap.add_argument("--expected-seeds", type=int, default=None, help=f"runs per group that should exist (default {EXPECTED_SEEDS}, rev3)")
+    ap.add_argument("--title", default=None, help="page heading (default: run folder name)")
+    ap.add_argument("--note", default="", help="extra sentence under the heading")
     args = ap.parse_args()
+    TRAIN_EPS = args.train_eps if args.train_eps is not None else TRAIN_EPS
+    TOTAL_FRAMES = args.total_frames if args.total_frames is not None else TOTAL_FRAMES
+    EXPECTED_SEEDS = args.expected_seeds if args.expected_seeds is not None else EXPECTED_SEEDS
     run_dir = args.run_dir
     out = args.output or run_dir / "report.html"
 
@@ -360,11 +372,11 @@ def main():
         robust = '<p class="sub">No evaluation results found (run evaluate.py to add robustness sections).</p>'
 
     doc = (f'<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
-           f'<title>{html.escape(run_dir.name)} report</title><style>{CSS}</style></head><body><main>'
-           f'<h1>{html.escape(run_dir.name)} &mdash; mini-test return</h1>'
+           f'<title>{html.escape(args.title or run_dir.name)} report</title><style>{CSS}</style></head><body><main>'
+           f'<h1>{html.escape(args.title or (run_dir.name + " — mini-test return"))}</h1>'
            f'<p class="sub">Source: <code>train.log</code> (50 episodes, seeds 1000&ndash;1049, every 50k frames). '
            f'Thin lines = individual seeds; bright line = mean over seeds; dashed lines mark the mean curve&rsquo;s peak. '
-           f'All charts share axes.</p>' + "".join(body) + robust + "</main></body></html>")
+           f'All charts share axes. {html.escape(args.note)}</p>' + "".join(body) + robust + "</main></body></html>")
     out.write_text(doc)
     print(f"wrote {out}")
     for g in groups:
