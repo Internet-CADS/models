@@ -5,7 +5,7 @@ Rev 2 of wocar, mainly for training 6x vanilla dqn, sa dqn, wocar dqn
 Training side only. Evaluation and checkpoint selection are out of scope (run separately after training).
 Production runs are **not** launched by this repo's tooling automatically: you start them, from two terminals, as described below.
 
-Verification and smoke-test results: `../../docs/rev2_verification/01_eval_changes.md` (safety-score removal), `../../docs/rev2_verification/02_implementation_verification.md` (paper checks), `../../docs/rev2_verification/03_smoke_test.md` (smoke runs + Gate 4 orchestrator/monitor results).
+Verification and smoke-test results: `../../docs/archive/rev2_verification/01_eval_changes.md` (safety-score removal), `../../docs/archive/rev2_verification/02_implementation_verification.md` (paper checks), `../../docs/archive/rev2_verification/03_smoke_test.md` (smoke runs + Gate 4 orchestrator/monitor results).
 
 ## What runs
 18 runs in three batches, 6 concurrent per batch (one per core):
@@ -21,7 +21,7 @@ Each run: `TRAIN_SEED = model index` (1..6), 4,000,000 frames. Each run dir hold
 Trainers are started with `CUDA_VISIBLE_DEVICES=""`, `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, cwd = this entry dir.
 
 ε-greedy: 1.0 → 0.05 linearly over frames 1k→51k, then linearly to 0 at 4M (`act_epsilon_decay_zero: true`, upstream behaviour).
-Gradient clipping at 10 is active (see `../../docs/rev2_verification/02_implementation_verification.md` F1).
+Gradient clipping at 10 is active (see `../../docs/archive/rev2_verification/02_implementation_verification.md` F1).
 
 ## Launch (production)
 Run from the repo root, inside `tmux`, with the project venv (`.venv`, see below).
@@ -64,7 +64,7 @@ Ctrl-C in the orchestrator leaves trainers running; use `--resume` to reattach. 
 - `path_prefix`: `artifacts/run_1` (was `artifacts/3rd_run`).
 - `flat_run_dir` (new, opt-in top-level key in `train.py`): when true, the run dir is `path_prefix` exactly, with no `highway-v0_<suffix>` folder. It is **not** set in the configs; `run_orchestrator.py` passes `flat_run_dir=true` on the command line, so a manual `train.py --config ...` keeps the default nested folders and models cannot overwrite each other.
 - `safety_max_crash_rate` removed; all `best_frame_*` saving removed.
-- Hyperparameters otherwise unchanged (verified against `docs/wocar_context.md` §3 (repo root)).
+- Hyperparameters otherwise unchanged (verified against `docs/archive/wocar_context.md` §3 (repo root)).
 
 ## Artifacts policy
 Nothing under `artifacts/` is deleted or moved by any script. Checkpoints, `train.log`, `.npy` and TensorBoard files are kept in place. `*.log` is tracked (the `.gitignore` rule was removed), so each batch's `train.log` and TensorBoard event files are committed once when the batch completes. Checkpoints and `.npy` files are not committed by the scripts.

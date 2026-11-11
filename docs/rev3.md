@@ -77,7 +77,7 @@ The runbook (Step 3b) applies the last row. It assumes hyperthreads add no throu
 **Decision:** the first launch (25 vehicles, 12 runs, `artifacts/run_1`) was stopped after about 40 minutes at ~20 frames/s per run (~28 h projected). It was restarted with 15 vehicles and 9 runs (3 seeds) in `artifacts/run_2` (~13 h projected, ~40 frames/s per run expected). `artifacts/run_1` is kept untouched as the aborted attempt and is not used for any result.
 
 ## Extra seeds (seeds 4–7)
-Why: with 3 seeds per group the seed-to-seed spread of crash rates under attack (5–12 points) dominates the comparison; the group-mean uncertainty is about ±5.5 points (estimate), and more evaluation episodes cannot reduce it. Plan: seeds 4 and 5 on the desktop (6 runs, ~10 h; the agent is pointed at `docs/desktop_extra_seeds.md`, a self-contained task file) and seeds 6 and 7 on the laptop (M1 Pro, 8 performance cores; 6 runs, ~9–11 h estimated, run with `caffeinate`). Expected result: 7 seeds per group, group-mean uncertainty about ±3.6 points.
+Why: with 3 seeds per group the seed-to-seed spread of crash rates under attack (5–12 points) dominates the comparison; the group-mean uncertainty is about ±5.5 points (estimate), and more evaluation episodes cannot reduce it. Plan: seeds 4 and 5 on the desktop (6 runs, ~10 h; the agent is pointed at `docs/archive/desktop_extra_seeds.md`, a self-contained task file) and seeds 6 and 7 on the laptop (M1 Pro, 8 performance cores; 6 runs, ~9–11 h estimated, run with `caffeinate`). Expected result: 7 seeds per group, group-mean uncertainty about ±3.6 points.
 
 Laptop (from `entries/05_wocar_dqn_r3/`, plugged in, nothing else heavy running):
 ```

@@ -1,7 +1,7 @@
 # Rev3 runbook (for the agent on the training desktop)
 
-This file: https://github.com/Internet-CADS/models/blob/wocar_r3/docs/r3_agent_runbook.md  
-If your clone is on another branch (e.g. `wocar_r2`) the file is not in your working tree yet; read it with `git fetch origin && git show origin/wocar_r3:docs/r3_agent_runbook.md`.
+This file: https://github.com/Internet-CADS/models/blob/wocar_r3/docs/archive/r3_agent_runbook.md  
+If your clone is on another branch (e.g. `wocar_r2`) the file is not in your working tree yet; read it with `git fetch origin && git show origin/wocar_r3:docs/archive/r3_agent_runbook.md`.
 
 Goal: train rev3 (`entries/05_wocar_dqn_r3/`, branch `wocar_r3`): all 9 runs (vanilla / SA-DQN / WocaR × seeds 1–3, 2M frames each), then evaluate. No pilot and no go/no-go gate: run it, evaluate it, report the results. Read `docs/rev3.md` for what rev3 is and why; this file is the step-by-step.
 
@@ -11,7 +11,7 @@ In the commands below `python` means the repo venv's interpreter (Windows: `.ven
 - Never delete or move anything under any `artifacts/` folder. Never edit `train.py`, `upstream/` or the configs.
 - Do not touch `main`. **Never force-push anything.**
 - Commit with explicit paths only (never `git add -A` / `git add .`). Keep LF line endings. Commit trailer: `Co-Authored-By: <your model name> <noreply@anthropic.com>`.
-- **Do not push unless the user tells you to**, with two exceptions the user has authorised: the git operations in Step 1 (push `wocar_r3`, delete the branch `wocar_r2`), the monitor's automatic progress commits/pushes during a run (Step 3, and the extra-seeds batch in `docs/desktop_extra_seeds.md`), and the final push of the extra-seeds results described in that file. Any other push needs the user's go-ahead; at the end say what is committed and what is left to push.
+- **Do not push unless the user tells you to**, with two exceptions the user has authorised: the git operations in Step 1 (push `wocar_r3`, delete the branch `wocar_r2`), the monitor's automatic progress commits/pushes during a run (Step 3, and the extra-seeds batch in `docs/archive/desktop_extra_seeds.md`), and the final push of the extra-seeds results described in that file. Any other push needs the user's go-ahead; at the end say what is committed and what is left to push.
 - Do not kill or restart training runs on your own (except as Step R says). The user has also authorised changing the CPU affinity and priority of the `train.py` processes as described in Step 3b, and nothing else about running processes. If something fails or looks wrong, stop and report it to the user.
 
 ## Step 0 — rev2 must be finished
@@ -105,7 +105,7 @@ Commit with explicit paths: the nine `train.log` files, `artifacts/eval_cache/ru
 Send: the headline comparison from the report at ε = 0.005 and 0.01 (vanilla vs SA-DQN vs WocaR: return and crash rate under PGD / worst-Q / MinBest / random noise), for the peak checkpoints, with the per-seed values and not only the means (seeds differ a lot in this kind of training), anything unusual (failed or restarted runs, a run whose mini-test return collapsed late in training), what is committed locally, and what is left to push.
 
 ## Extra seeds batch (seeds 4 and 5)
-This is a separate, self-contained task with its own file: `docs/desktop_extra_seeds.md` (https://github.com/Internet-CADS/models/blob/wocar_r3/docs/desktop_extra_seeds.md). It is not part of the steps above; if you were pointed at that file, follow only that file.
+This is a separate, self-contained task with its own file: `docs/archive/desktop_extra_seeds.md` (https://github.com/Internet-CADS/models/blob/wocar_r3/docs/archive/desktop_extra_seeds.md). It is not part of the steps above; if you were pointed at that file, follow only that file.
 
 ## Where things are
 `entries/05_wocar_dqn_r3/README.md` (flags, details) · `docs/rev3.md` (changes, decisions) · `docs/deviations.md` (paper/authors' code differences).

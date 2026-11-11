@@ -1,6 +1,6 @@
 # 02 — Implementation verification (Gate 2)
 
-Scope: static review of `entries/04_wocar_dqn_r2/` at commit `8e7c792` against the paper (Alg. 2, p. 19–20), `docs/wocar_context.md` §3/§4, and the brief. Line refs are to `train.py` unless stated.
+Scope: static review of `entries/04_wocar_dqn_r2/` at commit `8e7c792` against the paper (Alg. 2, p. 19–20), `docs/archive/wocar_context.md` §3/§4, and the brief. Line refs are to `train.py` unless stated.
 **Not run at runtime** (torch / highway-env not installable here); runtime confirmation is Gate 3. Two behaviours were reproduced in plain Python (items F1, F2).
 
 ## Summary
