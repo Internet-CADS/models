@@ -108,4 +108,4 @@ Send: the headline comparison from the report at ε = 0.005 and 0.01 (vanilla vs
 This is a separate, self-contained task with its own file: `docs/archive/desktop_extra_seeds.md` (https://github.com/Internet-CADS/models/blob/wocar_r3/docs/archive/desktop_extra_seeds.md). It is not part of the steps above; if you were pointed at that file, follow only that file.
 
 ## Where things are
-`entries/05_wocar_dqn_r3/README.md` (flags, details) · `docs/rev3.md` (changes, decisions) · `docs/deviations.md` (paper/authors' code differences).
+`entries/05_wocar_dqn_r3/README.md` (flags, details) · `docs/rev3.md` (changes, decisions, paper/authors' code differences).

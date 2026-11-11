@@ -1,6 +1,6 @@
 # Rev 4: possible plan (draft)
 
-Status: a proposal, not a decision. Drafted from `README.md`, `docs/deviations.md`, `docs/rev3.md`, `config_highway_wocar.json` and parts of `train.py` / `evaluate.py`. All hour figures are derived from the rev 3 estimates (single-core CPU times), not measured for rev 4 configs. Items marked (unverified) were not checked in the repo.
+Status: a proposal, not a decision. Drafted from `README.md`, `docs/rev3.md` (incl. the deviations from the paper), `config_highway_wocar.json` and parts of `train.py` / `evaluate.py`. All hour figures are derived from the rev 3 estimates (single-core CPU times), not measured for rev 4 configs. Items marked (unverified) were not checked in the repo.
 
 ## Facts used for the arithmetic
 - CPU time per run at 15 vehicles and 2M frames (`docs/rev3.md`): vanilla ~8 h, SA-DQN ~9.3 h, WocaR ~9.8 h. A run uses one core.

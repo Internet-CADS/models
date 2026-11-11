@@ -86,7 +86,7 @@ Same setup as rev1 on purpose (**hyperparameters untouched**), so that rev2 test
 
 ## Rev 3: stronger robust training, 7 seeds (`entries/05_wocar_dqn_r3`)
 
-Goal: a setup in which robust training can show a gap, with much less compute. Reward definition unchanged. Details of every difference from the authors' code are in `docs/deviations.md`; the plan and decisions are in `docs/rev3.md`. Changes are in bold.
+Goal: a setup in which robust training can show a gap, with much less compute. Reward definition unchanged. The details (every change, decisions, measured compute, and every difference from the paper and the authors' code) are in `docs/rev3.md`. Changes are in bold.
 
 | Setting | Rev3 value (rev2) | Why |
 |---|---|---|
@@ -122,5 +122,5 @@ Goal: a setup in which robust training can show a gap, with much less compute. R
 
 ## More
 - Evaluation files: open the three `report.html` files above. Rebuild: `python3 entries/05_wocar_dqn_r3/report.py <run folder> --eval-dir <cache> ...` (rev1: `python3 entries/03_wocar_dqn/make_report.py`). Rev3 evaluation: `python evaluate.py artifacts/run_2` inside `entries/05_wocar_dqn_r3`.
-- Docs: `docs/rev3.md` (changes and decisions of rev3), `docs/deviations.md` (differences from the paper and the authors' code), `docs/rev4_plan.md` (draft plan for a possible rev 4), `docs/paper.pdf` (the WocaR-RL paper).
+- Docs: `docs/rev3.md` (changes, decisions, compute and differences from the paper and the authors' code), `docs/rev4_plan.md` (draft plan for a possible rev 4), `docs/paper.pdf` (the WocaR-RL paper).
 - `docs/archive/`: finished or historical material: code verification of rev2 (`rev2_verification/`), rev1 background (`wocar_context.md`), the agent task files used to run rev3 (`r3_agent_runbook.md`, `desktop_extra_seeds.md`), and old briefs and runbooks.
