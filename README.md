@@ -122,4 +122,4 @@ Goal: a setup in which robust training can show a gap, with much less compute. R
 
 ## More
 - Evaluation files: open the three `report.html` files above. Rebuild: `python3 entries/05_wocar_dqn_r3/report.py <run folder> --eval-dir <cache> ...` (rev1: `python3 entries/03_wocar_dqn/make_report.py`). Rev3 evaluation: `python evaluate.py artifacts/run_2` inside `entries/05_wocar_dqn_r3`.
-- `docs/rev3.md` (changes and decisions of rev3), `docs/deviations.md` (differences from the paper and the authors' code), `docs/rev2_verification/` (code verification), `docs/wocar_context.md` (rev1 background), `docs/archive/` (old briefs), `docs/desktop_extra_seeds.md` and `docs/r3_agent_runbook.md` (agent task files used to run rev3).
+- `docs/rev3.md` (changes and decisions of rev3), `docs/rev4_plan.md` (draft plan for a possible rev 4), `docs/deviations.md` (differences from the paper and the authors' code), `docs/rev2_verification/` (code verification), `docs/wocar_context.md` (rev1 background), `docs/archive/` (old briefs), `docs/desktop_extra_seeds.md` and `docs/r3_agent_runbook.md` (agent task files used to run rev3).
