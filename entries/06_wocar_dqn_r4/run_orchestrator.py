@@ -304,6 +304,9 @@ def main():
     if not args.smoke:
         rev4.log(f"Training{' stage ' + str(args.stage) if args.stage else ''}: {len(runs) - bad}/{len(runs)} runs finished"
                  + "".join(f"\n- {r.name}: {r.state} {r.note}" for r in runs))
+        if bad:
+            rev4.blocked(f"{bad} training run(s) failed (list above). Their run.err and train.log show why; "
+                         "nothing was relaunched.")
     sys.exit(0 if bad == 0 else 1)
 
 

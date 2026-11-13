@@ -62,6 +62,8 @@ def finish(name, verdict, lines, next_step):
     text = f"**Gate `{name}`: {verdict}**\n\n" + "\n".join(lines) + f"\n\nNext: {next_step}"
     print("\n" + text + "\n")
     rev4.log(text)
+    if next_step.startswith("STOP"):
+        rev4.blocked(f"Gate `{name}` failed (table above). {next_step}")
     sys.exit({"PASS": 0, "RETRY": 2}.get(verdict, 1))
 
 

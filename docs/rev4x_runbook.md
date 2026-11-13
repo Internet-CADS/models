@@ -9,8 +9,10 @@ pushes, the progress commits and pushes made by `monitoring.py --push`, the comm
 changing the CPU affinity of the `train.py` processes (step 1c). Anything else that changes the repository, the
 training runs or the machine needs the user's go-ahead.
 
-**When to contact the user:** when a gate prints FAIL, when anything in "If something goes wrong" says stop, and at
-the end (Step 8). Everything else you do on your own and record in `RUNLOG.md`.
+**When to contact the user:** only when this runbook says **"stop and ask"** (a gate that says STOP, a failed or stalled
+run, a check that fails, anything you do not understand), and at the end (Step 8). Always do it with the procedure in
+"Stopping to ask the user" below: the user watches GitHub, not your chat. Everything else you do on your own and record
+in `RUNLOG.md`.
 
 **If you lose context at any point:** read `entries/06_wocar_dqn_r4/RUNLOG.md` (what has been done), then
 `entries/06_wocar_dqn_r4/rev4_params.json` (which gates have passed), then check whether `train.py` processes are
@@ -34,11 +36,10 @@ running. Continue at the first step that is not finished. Never start a step twi
 - Never edit `train.py`, `gate.py`, `rev4.py`, the configs, `upstream/` or `rev4_params.json`. If a script refuses to
   run with `NOT ALLOWED`, a previous step is missing: go back to the runbook, do not work around it.
 - A gate prints one of three verdicts. **PASS**: go to the step it names. **RETRY**: repeat the step it names, once.
-  **FAIL**: do what the `Next:` line says (usually: stop and report to the user). Do not train anything after a FAIL
+  **FAIL**: do what the `Next:` line says (a line starting with STOP means: stop and ask). Do not train anything after a FAIL
   unless the `Next:` line tells you to.
 - Do not kill or restart training runs on your own, except changing their CPU affinity as described in step 1c.
-  If a run fails or something looks wrong, write it into `RUNLOG.md`, stop, and report to the user with the relevant
-  log lines.
+  If a run fails or something looks wrong, stop and ask (see "Stopping to ask the user").
 - Git: stay on `rev4x`. Never touch `main`, never force-push. Commit with **explicit paths only** (never
   `git add -A` / `git add .`). Keep LF line endings. End every commit message with
   `Co-Authored-By: <your model name> <noreply@anthropic.com>`.
@@ -62,6 +63,32 @@ Helper to add a line to `RUNLOG.md`:
 python -c "import rev4; rev4.log('Step 1 started: stage 1 training launched')"
 ```
 
+## Stopping to ask the user
+The user follows the run on GitHub and searches `RUNLOG.md` and the commit list for three fixed markers:
+`BLOCKED: needs the user`, `RESUMED` and `FINISHED: rev 4 is complete`. Whenever this runbook says **stop and ask**:
+1. Leave every running `train.py` process alone (do not kill anything).
+2. Add the marker with a short reason (what happened, which step, which files to look at):
+   ```
+   python -c "import rev4; rev4.blocked('Step 1d: vanilla_g090/model_2 shows failed. Last lines of run.err: ...')"
+   ```
+   `gate.py` (on a STOP verdict) and the orchestrator (when a run fails) add this marker by themselves; then skip this
+   point and go to 3.
+3. Commit and push it, with the marker in the commit message:
+   ```
+   git -C ../.. add -- entries/06_wocar_dqn_r4/RUNLOG.md
+   git -C ../.. commit -m "BLOCKED: needs the user (<step>)"
+   git -C ../.. push origin rev4x
+   ```
+   (Gate steps: use the gate commit command of that step instead, with `BLOCKED: needs the user (gate N)` as the
+   message, so the gate's files go along.)
+4. Write the same reason in your chat reply, and wait. Do nothing else until the user answers.
+
+When the user tells you to continue, first add `python -c "import rev4; rev4.resumed('<what the user decided>')"`,
+then continue as told (the next commit carries it).
+
+If the user sees no new `PROGRESS.md` commit for more than an hour while a stage is running, or no `RUNLOG.md` commit
+for more than 7 hours, they will assume your session died and come to the desktop.
+
 ## Step 0 — setup and checks (15 minutes, no real training)
 ```
 git fetch origin --prune
@@ -75,7 +102,7 @@ python run_orchestrator.py --stage 1 --smoke
 - Make sure no `train.py` process is running and the machine is otherwise idle.
 - The dry run must list 6 commands and end with `DRY RUN OK`.
 - The smoke run trains 6 runs for 3,000 frames each (about 2 minutes) into `artifacts/smoke/stage1` and must end with
-  `6/6 runs finished`. If either check fails, stop and report.
+  `6/6 runs finished`. If either check fails, stop and ask.
 - Log it: `python -c "import rev4; rev4.log('Step 0 done: imports, dry run and smoke run ok')"`
 
 ## Step 1 — stage 1: vanilla DQN with two discount factors (about 5 hours)
@@ -103,7 +130,7 @@ run is at or below ~40 frames/s, undo with `0xFFF` instead of `0x555` and note i
 command whenever trainers are (re)started, i.e. at the start of every stage.
 
 **1d. Wait.** Look at `PROGRESS.md` every 30–60 minutes. Nothing else to do. If a run shows `failed` or `stalled`,
-stop and report (include the last 30 lines of that run's `run.err` and `train.log`).
+stop and ask (put the last 30 lines of that run's `run.err` and `train.log` in the chat reply).
 
 **1e. Done when** the orchestrator prints `6/6 runs finished` and exits. Then stop the monitor (Ctrl-C).
 
@@ -122,7 +149,8 @@ python diagnose.py --stage1 --workers 6
 python gate.py stage1
 ```
 - **PASS:** it names the chosen arm and writes γ and `hinge_c` into `rev4_params.json`. Go to step 3.
-- **FAIL:** stop. Commit (below), then report the gate's table to the user. Nothing else is trained.
+- **FAIL:** stop and ask (the gate has added the BLOCKED marker; commit with the gate command below and the message
+  `BLOCKED: needs the user (gate 1)`). Nothing else is trained.
 
 Commit after every gate (same command each time; `artifacts/eval_cache` does not exist yet after gate 1, leave it out there):
 ```
@@ -137,7 +165,7 @@ python gate.py epsilon
 ```
 The evaluation attacks the chosen vanilla arm at ε 0.005 … 0.1; the gate picks the smallest ε at which vanilla clearly
 breaks.
-- **PASS:** go to step 4. **FAIL:** stop and report the table.
+- **PASS:** go to step 4. **FAIL:** stop and ask (as in step 2).
 - Commit as after gate 1 (message `gate epsilon`).
 
 ## Step 4 — stage 2: more vanilla seeds + SA-DQN (about 5 hours, then about 40 minutes of evaluation)
@@ -153,7 +181,7 @@ python gate.py stage2
 - **PASS:** go to step 5.
 - **RETRY:** the gate has changed κ and created a new group `sa_dqn_b`. Repeat this whole step 4 once (the same
   commands; the orchestrator now trains only `sa_dqn_b` seeds 1–3, three runs, and skips the finished vanilla runs).
-- **FAIL:** stop and report the table.
+- **FAIL:** stop and ask (as in step 2).
 - Commit as after gate 1 (message `gate 2`).
 
 ## Step 5 — stage 3: more SA-DQN seeds + WocaR-DQN (about 5 hours, then about 40 minutes of evaluation)
@@ -194,6 +222,13 @@ python report.py
 git -C ../.. add -- entries/06_wocar_dqn_r4/RUNLOG.md entries/06_wocar_dqn_r4/rev4_params.json entries/06_wocar_dqn_r4/artifacts/eval_cache entries/06_wocar_dqn_r4/artifacts/run_1/report.html
 git -C ../.. commit -m "data(rev4): final evaluation and report"
 ```
+- Then mark the end and push:
+```
+python -c "import rev4; rev4.finished('Final report: artifacts/run_1/report.html. Summary in the chat reply.')"
+git -C ../.. add -- entries/06_wocar_dqn_r4/RUNLOG.md
+git -C ../.. commit -m "FINISHED: rev 4 is complete"
+git -C ../.. push origin rev4x
+```
 
 ## Step 8 — final message to the user
 Send:
@@ -210,12 +245,12 @@ Send:
 |---|---|
 | A script prints `NOT ALLOWED` | A previous step or gate is missing. Read `RUNLOG.md` and `rev4_params.json`, find the step, do it. |
 | A gate says `gate already decided` | That gate is done. Continue with the next step. |
-| A training run shows `failed` | Stop. Report `run.err` and the end of `train.log` of that run. Do not delete or relaunch by hand. |
+| A training run shows `failed` or `stalled` | Stop and ask. Do not delete or relaunch anything by hand. |
 | The orchestrator was interrupted | Run the same command again; it reattaches to live runs. |
 | `evaluate.py` was interrupted | Run the same command again; finished jobs are cached. |
 | A gate or `evaluate.py` says an evaluation or checkpoint is missing | The step before it did not finish. Go back to it. |
 | Speeds far below 40 frames/s | Check that no other program uses the CPU and that the affinity is set (1c). Note it in `RUNLOG.md`. |
-| Anything else you do not understand | Write it into `RUNLOG.md`, stop, and ask the user. |
+| Anything else you do not understand | Stop and ask. |
 
 ## Time plan (estimates from the rev 3 measurements on this desktop)
 | Step | Time |

@@ -73,6 +73,24 @@ def log(text):
         f.write(f"\n### {stamp}\n{text.rstrip()}\n")
 
 
+# Fixed markers the user searches for in RUNLOG.md (and in the commit messages that carry them).
+BLOCKED = "BLOCKED: needs the user"
+RESUMED = "RESUMED"
+FINISHED = "FINISHED: rev 4 is complete"
+
+
+def blocked(reason):
+    log(f"## {BLOCKED}\n{reason.rstrip()}")
+
+
+def resumed(note):
+    log(f"## {RESUMED}\n{note.rstrip()}")
+
+
+def finished(note):
+    log(f"## {FINISHED}\n{note.rstrip()}")
+
+
 def config_for(group):
     return GROUPS[group][0]
 
