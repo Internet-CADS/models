@@ -56,7 +56,25 @@ Simulator speed, one thread, random actions, no network (Mac; episode length doe
 With 3 seeds per group the seed-to-seed spread of crash rates under attack (5–12 points) dominates the comparison, and more evaluation episodes cannot reduce it. Seeds 4 and 5 were trained on the desktop (6 runs) and seeds 6 and 7 on the laptop (M1 Pro, 6 runs, 74–80 frames/s per run before the epsilon ramp, ~50 after, `caffeinate`). The peak frame is chosen from the mean over all seeds, so adding seeds moved it for all three groups and all 21 runs were re-evaluated.
 
 ## 5. Deviations from the paper and the authors' code
-Sources: the paper (`docs/paper.pdf`, Algorithm 2 on p.20, D.1.2 on p.22), the vendored rewrite in `upstream/` (SA-DQN-based; its README says it differs from the paper), and the authors' other implementation `WocaR-DQN/RA-DQN/` in https://github.com/umd-huang-lab/WocaR-RL (Atari-only). **The RA-DQN facts below were read through a page-summarising tool, not verbatim; spot-check before relying on exact numbers.** Deviations that merely come from using the rewrite (single acting network + target + worst critic, blended-argmax bootstrap, hard target copies, ε-greedy decaying to 0) are not listed: RA-DQN shares them.
+Sources: the paper (`docs/paper.pdf`, Algorithm 2 on p.20, D.1.2 on p.22), the vendored rewrite in `upstream/` (SA-DQN-based; its README says it differs from the paper), and the authors' other implementation `WocaR-DQN/RA-DQN/` in https://github.com/umd-huang-lab/WocaR-RL (Atari-only). The RA-DQN facts were verified verbatim on 2026-11-13 against a clone of the repository (commit `2856174`); `upstream/` is byte-identical to that repository's `WocaR-DQN/SA-DQN` folder (top-level files). Deviations that merely come from using the rewrite (single acting network + target + worst critic, hard target copies, ε-greedy decaying to 0) are not listed: RA-DQN shares them.
+
+### The three versions of WocaR-DQN
+| | Paper (Algorithm 2) | `upstream/` (SA-DQN-based rewrite) | RA-DQN (authors: "consistent with the paper's results") | Ours (rev 3) |
+|---|---|---|---|---|
+| Networks | vanilla Q, robust Q, worst-case critic | one Q + worst-case critic | one Q + worst-case critic | one Q + worst-case critic (+ target) |
+| Worst-case value in the natural target | the mixed value is bootstrapped | the mix only **selects** the next action; the value is the natural target Q | same as upstream (constant ratio 0.05) | same as upstream (ratio ramped to 0.1) |
+| Radius of the worst-case critic's action set | training ε | hard-coded `1e-7` on the next state (the critic then only evaluates the greedy policy) | fixed `1e-3`, computed on the **current** state (looks like a bug: Algorithm 2 uses the next state) | `worst_eps` (0.001), next state |
+| Worst-case critic target network | not specified | none (uses itself) | none | added |
+| SA regulariser | yes, weighted by w(s) | yes, no w(s) | no | yes, with w(s) (added by us) |
+| Bound-based worst-case loss | no | yes (README: makes training unstable) | yes (RADIAL-DQN's loss, κ 1→0.5) | yes, `worst_kappa_end` 0.5 |
+| Double DQN | yes (D.1.2) | commented out | yes | no |
+| Reward clipping | ±1 (D.1.2) | in the Atari wrapper | clamped to ±1 in the training loop | none (highway branch bypasses the wrapper) |
+| Gradient clipping | not stated | silently a no-op (generator exhausted) | none | active (rev 2 fix) |
+
+Notes:
+- Only one shipped upstream config (`Pong_pgd_worst.json`) enables the worst-case critic, with `worst_ratio` 0.01, `worst_rate` 1 and `worst_kappa_end` 0.9. The pretrained models in the upstream README use the `pgd` solver, not convex relaxation.
+- With the selection-only mix and a small ratio, the worst-case critic rarely changes the bootstrap action, so WocaR's mechanism 2 is much weaker in `upstream/` and in our rev 3 than in the paper. Rev 4 adds `worst_target_mode: "value"` (paper behaviour).
+- Our WocaR is therefore a third variant (SA regulariser + w(s) + repaired worst-case critic + worst-case loss), and is reported as "our implementation based on the authors' rewrite".
 
 ### A. Remaining deviations (ours), ranked by expected importance
 | # | Deviation | Status |
@@ -66,7 +84,8 @@ Sources: the paper (`docs/paper.pdf`, Algorithm 2 on p.20, D.1.2 on p.22), the v
 | 3 | `worst_ratio`: rev2 ramped 0→0.1; paper (D.1.2) delays and reaches 0.5 (ambiguous, see B1); RA-DQN a constant 0.05; upstream configs 0.01–0.1 | Rev3: 0.1 (ramped with the ε ramp) |
 | 4 | Worst-critic bound radius: RA-DQN fixed 1e-3; ours ramped to `worst_eps_end` (rev2: 0.0025). A wide radius makes the worst critic more pessimistic (rev2: worst-Q drifted to −325 … −2300) | Rev3: 0.001 |
 | 5 | `bound_solver` `cov` (convex relaxation). The authors' rewrite configs / pretrained models use `pgd`; RA-DQN uses interval bounds | Open: `pgd` would remove certification (rev 4 plan, direction C) |
-| 6 | No Double DQN (paper and RA-DQN use it). Applies to all groups | Open; small code change (rev 4 plan, direction C) |
+| 6 | No Double DQN (paper and RA-DQN use it). Applies to all groups | Open; small code change (not in rev 4) |
+| 6b | Base learner tuned for Atari: Huber loss with Q ≈ 45 caps the crash signal; the 60-step time limit is stored as a real ending; `hinge_c` 1 against natural action gaps of ~0.04. Measured on rev 3 vanilla seed 1: mean Q 43.5 vs realised discounted return 11.6, Q 31.7 one step before a crash | Found after rev 3; addressed in rev 4 (`entries/06_wocar_dqn_r4/README.md`) |
 | 7 | Worst critic updated every 4th step (`worst_rate` 4); authors: 10 (RA-DQN), 1 and 100 (rewrite configs); the paper says every step | Kept at 4 |
 | 8 | w(s) is in the paper but absent from RA-DQN; our code has it (added by the project) | Informational |
 | 9 | Gradient clipping at 10 is active (rev2 fix; upstream's was a no-op) | Kept |
