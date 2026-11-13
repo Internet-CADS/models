@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""diagnose.py - does the Q-function of a checkpoint match what its policy actually earns?
+"""diagnose.py - is the Q-function of a checkpoint consistent, and does it register crashes?
 
-Rev 3's Q-values ignored episode ends (mean Q 43.5 against a realised discounted return of 11.6, and Q 31.7 one step
-before a crash). This script measures the same thing for rev 4 checkpoints, so gate.py can check it.
+Rev 3 trained with the time limit as an episode end, yet its Q-values (mean 43.5) were close to an endless horizon
+instead of the 11.6 its episodes actually earned, and Q was still 31.7 one step before a crash.
 
 For each (group, seed) it runs clean greedy episodes on fresh seeds (2000+, not the mini-test or evaluation seeds) and
-records, per step: max Q, the gap between the best and second-best action, and the realised discounted return G.
-G bootstraps with max Q at the time limit (training does the same in rev 4), and only steps where that tail weighs at
-most 10% are compared, so the comparison is about the rewards and crashes the policy really gets.
+records, per step: max Q, the gap between the best and second-best action, and the discounted return G that followed.
+G ends at a crash (0 afterwards) and bootstraps with max Q at the time limit, as training does in rev 4.
+- mean Q / mean G: a consistency check that catches diverging or collapsed values. At gamma >= 0.97 the bootstrapped
+  tail dominates a 60-step episode, so it does NOT test the crash signal (rev 3 vanilla passes it with 1.05).
+- Q one step before a crash, and crash sensitivity (mean Q - that) / (mean Q + 2): how much of a crash's cost the
+  value function shows just before it (rev 3 vanilla 0.20; rev 4 laptop pilot 0.30 at gamma 0.99, 0.43-0.45 at
+  0.97 / 0.9).
 
     python diagnose.py --stage1 --workers 6            # all stage 1 arms, final frame (what gate.py stage1 reads)
     python diagnose.py --groups sa_dqn --seeds 1,2,3   # any group; gamma comes from rev4_params.json
@@ -34,7 +38,6 @@ sys.path.insert(0, str(ENTRY_DIR))
 import rev4  # noqa: E402
 
 EPISODE_SEED0 = 2000
-TAIL_WEIGHT_MAX = 0.1
 
 
 def diag_path(run_dir, group, seed, frame):
@@ -78,12 +81,10 @@ def run_job(job):
         crashes += bool(info["crashed"])
         rets.append(sum(rs))
         g = 0.0 if ended else float(q_of(s).max())   # bootstrap through the time limit, as training does
-        T = len(rs)
-        for t in range(T - 1, -1, -1):
+        for t in range(len(rs) - 1, -1, -1):
             g = rs[t] + gamma * g
-            if ended or gamma ** (T - t) <= TAIL_WEIGHT_MAX:
-                Q.append(qs[t])
-                G.append(g)
+            Q.append(qs[t])
+            G.append(g)
         if info["crashed"]:
             q_precrash.append(qs[-1])
     env.close()
@@ -132,7 +133,7 @@ def main():
                          out=str(diag_path(run_dir, g, sd, args.frame))))
     with ProcessPoolExecutor(max_workers=args.workers) as ex:
         results = list(ex.map(run_job, jobs))
-    print(f"{'run':<24} {'crash':>6} {'return':>7} {'speed':>6} {'mean Q':>7} {'realised':>9} {'Q/real':>7} {'Q pre-crash':>12} {'median gap':>11}")
+    print(f"{'run':<24} {'crash':>6} {'return':>7} {'speed':>6} {'mean Q':>7} {'mean G':>9} {'Q/G':>7} {'Q pre-crash':>12} {'median gap':>11}")
     for r in results:
         pc = f"{r['q_before_crash']:.2f}" if r["q_before_crash"] is not None else "-"
         ratio = f"{r['q_ratio']:.2f}" if r["q_ratio"] is not None else "-"

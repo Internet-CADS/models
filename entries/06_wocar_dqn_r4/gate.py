@@ -27,7 +27,8 @@ ENTRY = Path(__file__).resolve().parent
 # --- thresholds (see docs/rev4x_runbook.md for the reasoning) -------------------------------------------------------
 CRASH_MAX = 0.15          # gate 1: clean crash rate of the vanilla arm (rev 3 vanilla: 0.23)
 RETURN_MIN = 18.0         # gate 1: clean return (rev 3 vanilla: 23; driving slowly in the right lane gives about 9)
-Q_RATIO = (0.6, 1.5)      # gate 1: mean Q / realised discounted return (rev 3 vanilla: 3.7)
+Q_RATIO = (0.6, 1.5)      # gate 1: mean Q / discounted return that followed, bootstrapped at the time limit (guards
+                          # against diverging values; it does not test the crash signal, see the crash-sensitivity column)
 TAIL_TESTS = 3            # gate 1 looks at the last 3 mini-tests of each run (150 episodes per seed)
 HINGE_RANGE = (0.02, 0.5)  # hinge_c = median best-vs-second action gap of the chosen vanilla arm, clipped to this
 EPS_MIN_INCREASE = 0.20   # epsilon gate: smallest epsilon at which gradient attacks add at least this to vanilla's crash rate
@@ -101,16 +102,19 @@ def stage1(run_dir, params, force):
             ret.append(mean([t[0] for t in tail]))
             ratio.append(d["q_ratio"] if d["q_ratio"] is not None else float("inf"))
             gap.append(d["gap_median"])
+            sens = "-" if d["q_before_crash"] is None else f"{(d['mean_q'] - d['q_before_crash']) / (d['mean_q'] + 2):.2f}"
             rows.append([f"{arm}/model_{seed}", gamma, fmt_pct(crash[-1]), f"{ret[-1]:.1f}", f"{ratio[-1]:.2f}",
-                         "-" if d["q_before_crash"] is None else f"{d['q_before_crash']:.2f}", f"{d['mean_q']:.2f}", f"{d['gap_median']:.3f}"])
+                         "-" if d["q_before_crash"] is None else f"{d['q_before_crash']:.2f}", f"{d['mean_q']:.2f}", sens, f"{d['gap_median']:.3f}"])
         st = dict(crash=mean(crash), ret=mean(ret), ratio=mean(ratio), gap=mean(gap))
         st["ok"] = st["crash"] <= CRASH_MAX and st["ret"] >= RETURN_MIN and Q_RATIO[0] <= st["ratio"] <= Q_RATIO[1]
         stats[arm] = st
-    lines = [table(["run", "gamma", "crash (last 3 mini-tests)", "return", "Q / realised", "Q before crash", "mean Q", "median action gap"], rows), "",
-             table(["arm", "mean crash", "mean return", "mean Q / realised", "passes"],
+    lines = [table(["run", "gamma", "crash (last 3 mini-tests)", "return", "Q / return", "Q before crash", "mean Q", "crash sensitivity", "median action gap"], rows), "",
+             table(["arm", "mean crash", "mean return", "mean Q / return", "passes"],
                    [[a, fmt_pct(s["crash"]), f"{s['ret']:.1f}", f"{s['ratio']:.2f}", "yes" if s["ok"] else "no"] for a, s in stats.items()]), "",
-             f"Rule: crash <= {fmt_pct(CRASH_MAX)}, return >= {RETURN_MIN:g}, {Q_RATIO[0]} <= Q/realised <= {Q_RATIO[1]}; "
-             f"among passing arms the lowest crash rate wins (ties within 2 points: the higher return)."]
+             f"Rule: crash <= {fmt_pct(CRASH_MAX)}, return >= {RETURN_MIN:g}, {Q_RATIO[0]} <= Q/return <= {Q_RATIO[1]}; "
+             f"among passing arms the lowest crash rate wins (ties within 2 points: the higher return).",
+             "Crash sensitivity = (mean Q - Q one step before a crash) / (mean Q + 2): the share of a crash's cost the "
+             "value function shows just before it (information only; rev 3 vanilla: 0.20, laptop pilot: 0.30-0.45)."]
     ok = {a: s for a, s in stats.items() if s["ok"]}
     if not ok:
         params["gate1"] = "FAIL"
@@ -179,7 +183,7 @@ def stage2(run_dir, params, force):
     already(params, "gate2", force)
     eps, van, sa = params["epsilon"], params["vanilla_group"], params["sa_group"]
     ev = report.load_eval(cache_dir(run_dir, "gate"))
-    mv, nv = group_eval(ev, van, eps, 5)
+    mv, nv = group_eval(ev, van, eps, 6)
     ms, ns = group_eval(ev, sa, eps, 3)
     checks = health(ms, mv)
     checks["flip rate"] = ms.get("flip") is not None and ms["flip"] <= FLIP_SHARE * mv["flip"]
@@ -220,7 +224,7 @@ def stage3(run_dir, params, force):
     already(params, "gate3", force)
     eps, van, sa, woc = params["epsilon"], params["vanilla_group"], params["sa_group"], params["wocar_group"]
     ev = report.load_eval(cache_dir(run_dir, "gate"))
-    mv, nv = group_eval(ev, van, eps, 5)
+    mv, nv = group_eval(ev, van, eps, 6)
     ms, ns = group_eval(ev, sa, eps, 3)
     mw, nw = group_eval(ev, woc, eps, 3)
     checks = health(mw, mv)

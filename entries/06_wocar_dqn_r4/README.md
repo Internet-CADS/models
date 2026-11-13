@@ -23,7 +23,7 @@ Code is a copy of `05_wocar_dqn_r3`. Environment and reward are unchanged (15 ve
 |---|---|---|
 | The time limit is no longer stored as an ending; only a crash or leaving the road is | `highway_adapter.py` (`info["terminated"]`), `train.py` (`bootstrap_on_timeout`) | on |
 | Squared-error loss instead of Huber, also for the worst-case critic and the bound-based worst-case loss | `natural_loss_fn: "mse"` | on |
-| Discount factor chosen by a pilot (0.99, 0.95 or 0.9) | stage 1 arms in `rev4.py` | gate 1 decides |
+| Discount factor chosen between 0.97 and 0.9 (laptop pilot ruled out 0.99) | stage 1 arms in `rev4.py` | gate 1 decides |
 | `hinge_c` set from vanilla's measured action gaps | `gate.py stage1` | gate 1 decides |
 | Training and attack ε set where vanilla clearly breaks | `gate.py epsilon` | gate decides (≤ 0.05) |
 | WocaR: the mixed natural / worst-case value is bootstrapped (paper, Algorithm 2 line 17), not only used to pick the action | `train.py` (`worst_target_mode: "value"`) | on, ratio 0.5 |
@@ -43,18 +43,20 @@ That is why γ is a pilot arm and not a fixed choice.
 ## Stages and gates (every stage is 6 runs, one per core, about 5 h)
 | Step | Trains | Gate (`gate.py`) | Rule |
 |---|---|---|---|
-| Stage 1 | vanilla × γ 0.99 / 0.95 / 0.9 × seeds 1–2 | `stage1` | mean of the last 3 mini-tests: crash ≤ 15%, return ≥ 18; mean Q within 0.6–1.5 × the realised discounted return. Lowest crash rate among passing arms wins. Sets γ and `hinge_c` (median action gap, clipped to 0.02–0.5). |
+| Stage 1 | vanilla × γ 0.97 / 0.9 × seeds 1–3 | `stage1` | mean of the last 3 mini-tests: crash ≤ 15%, return ≥ 18; mean Q within 0.6–1.5 × the discounted return that followed (guards against diverging values). Lowest crash rate among passing arms wins. Sets γ and `hinge_c` (median action gap, clipped to 0.02–0.5). |
 | ε sweep | — (attacks on the chosen arm, ε 0.005–0.1) | `epsilon` | smallest ε ≤ 0.05 at which gradient attacks add ≥ 20 points to vanilla's crash rate |
-| Stage 2 | vanilla seeds 3–5, SA-DQN seeds 1–3 | `stage2` | SA-DQN: clean crash ≤ vanilla + 8 points, clean return ≥ 85% of vanilla, certified actions ≥ 50%, PGD flip rate ≤ half of vanilla's. One retry: κ ×5 if too weak, κ ÷4 if too strong. |
+| Stage 2 | vanilla seeds 4–6, SA-DQN seeds 1–3 | `stage2` | SA-DQN: clean crash ≤ vanilla + 8 points, clean return ≥ 85% of vanilla, certified actions ≥ 50%, PGD flip rate ≤ half of vanilla's. One retry: κ ×5 if too weak, κ ÷4 if too strong. |
 | Stage 3 | SA-DQN seeds 4–6, WocaR seeds 1–3 | `stage3` | WocaR: same driving and certification checks, worst-case critic bounded. One retry with `worst_ratio` 0.2. If it still fails, the final evaluation runs without stage 4. |
-| Stage 4 | WocaR seeds 4–6, vanilla seed 6, `wocar_wcl_dqn` seeds 1–2 | — | — |
+| Stage 4 | WocaR seeds 4–6, `wocar_wcl_dqn` seeds 1–3 | — | — |
 | Final | — (300 episodes, all groups and seeds) | — | `report.py` |
 
 Why these numbers:
 - **Crash ≤ 15%, return ≥ 18.** Rev 3 vanilla had 23% and 23. "Always slow down" crashes 1% but earns about 3
-  (measured, 80 episodes), and the cautious early phase of the γ 0.99 pilot earned 7–9. So the bar is "clearly fewer
+  (measured, 80 episodes), and the cautious early phase of the γ 0.99 pilot earned 7–9. The pilot reached 10–14%
+  at γ 0.97 / 0.9, so the bar is realistic. The bar is "clearly fewer
   crashes than rev 3 without giving up on driving".
-- **Q within 0.6–1.5 × realised.** Rev 3 was at 3.7. WocaR's worst-case critic needs values that mean something.
+- **Q within 0.6–1.5 × the discounted return that followed.** A guard against diverging or collapsed values, which
+  WocaR's worst-case critic would inherit. It does not test the crash signal (see the pilot section).
 - **ε where vanilla breaks.** With a better learner vanilla may shrug off ε 0.005 (about 1 m). The comparison needs an
   attack that hurts vanilla; 0.05 (10 m, 0.8 m sideways, 4 m/s) is the largest budget accepted.
 - **Gates 2 and 3 check health, not the result.** Three seeds are too few to gate on crash rates under attack, and
@@ -63,20 +65,27 @@ Why these numbers:
 The gates write `rev4_params.json`; the orchestrator, evaluation and report read it. A stage cannot start before its
 gate has passed.
 
-## Local sanity pilot (laptop, one seed per γ, 200k frames, not part of any result)
-Mini-test return / crash rate (50 episodes, so ±6 points of noise on the crash rate):
+## Laptop pilot (one seed per γ, not part of any result)
+Vanilla DQN with the rev 4 learner, seed 1, the full 1M-frame schedule; the mini-tests are 50 episodes (±5–6 points on
+a crash rate), the last column 100 fresh episodes run with `diagnose.py`.
 
-| Frames | γ 0.99 | γ 0.95 | γ 0.9 | Rev 3 vanilla (7 seeds) |
-|---|---|---|---|---|
-| 50k | 6.9 / 2% | 9.0 / 44% | 8.6 / 78% | 8.0 / 81% |
-| 100k | 9.5 / 26% | 12.4 / 68% | 13.5 / 62% | 10.5 / 68% |
-| 150k | 10.7 / 54% | 16.3 / 42% | 20.3 / 26% | 12.9 / 58% |
-| 200k | 12.2 / 24% | 18.5 / 40% | 20.2 / 34% | 14.8 / 54% |
+| γ | Crash, last 3 mini-tests | Return, last 3 | Crash, 100 fresh episodes | Q one step before a crash / mean Q | Crash sensitivity |
+|---|---|---|---|---|---|
+| 0.99 | 21% | 23.2 | 17% | 26.0 / 38.1 | 0.30 |
+| 0.97 | 11% | 25.4 | 10% | 8.8 / 17.0 | 0.43 |
+| 0.9 | 12% | 25.8 | 14% | 1.8 / 4.9 | 0.45 |
+| Rev 3 vanilla (seed 1; 7-seed mean in brackets) | 19% (21%) | 23.4 (23.5) | 19% | 34.4 / 43.5 | 0.20 |
 
-- γ 0.99 first learns to be safe and slow (0–6% crashes at return 7–9), then starts to speed up.
-- γ 0.9 comes close to rev 3's 1M-frame level (return 22, 27% crashes) after about 150k frames (20 / 26%).
-- 200k frames say nothing about where the arms end up; stage 1 answers that. The ε-greedy schedule of these pilot
-  runs also ended at 200k, unlike a 1M run.
+Crash sensitivity = (mean Q − Q one step before a crash) / (mean Q + 2): the share of a crash's cost that the value
+function shows just before it.
+
+- γ 0.97 and 0.9 crash about half as often as rev 3 and earn more; all three drive near top speed (29.7 m/s).
+- γ 0.99 learns slowly and would fail gate 1, so stage 1 compares only 0.97 and 0.9, with three seeds each.
+- The consistency check mean Q / mean discounted return (bootstrapped at the time limit) is 0.98–1.05 for all
+  three, and 1.05 for rev 3 as well: at γ ≥ 0.97 the bootstrapped tail dominates a 60-step episode, so it only guards
+  against diverging values. Gate 1 therefore decides on crash rate and return, and shows crash sensitivity for
+  information.
+- Reward kept: γ 0.9 was not more reckless than 0.97, so a larger collision penalty is not needed.
 
 ## Files
 | File | Role |
@@ -94,5 +103,4 @@ Mini-test return / crash rate (50 episodes, so ±6 points of noise on the crash 
 ## Open points
 - The gate thresholds are choices, not measurements. If gate 1 fails narrowly, that is a decision for the project, not
   for the training agent.
-- `wocar_wcl_dqn` has only two seeds: a first look, not a result.
-- If gate 3 fails twice, vanilla ends with five seeds (seed 6 is trained in stage 4).
+- `wocar_wcl_dqn` has only three seeds: a first look, not a result.

@@ -2,11 +2,11 @@
 """rev4.py - shared definitions for the rev 4 scripts: stages, groups, parameters, run log. Standard library only.
 
 Rev 4 runs in stages with a gate after each one (see ../../docs/rev4x_runbook.md):
-    stage 1  vanilla DQN, three discount factors (arms) x seeds 1-2   -> gate.py stage1  (picks the arm, sets gamma + hinge_c)
+    stage 1  vanilla DQN, two discount factors (arms) x seeds 1-3     -> gate.py stage1  (picks the arm, sets gamma + hinge_c)
              attack sweep on the chosen vanilla arm                    -> gate.py epsilon (sets the training/attack epsilon)
-    stage 2  vanilla seeds 3-5 + SA-DQN seeds 1-3                      -> gate.py stage2
+    stage 2  vanilla seeds 4-6 + SA-DQN seeds 1-3                      -> gate.py stage2
     stage 3  SA-DQN seeds 4-6 + WocaR-DQN seeds 1-3                    -> gate.py stage3
-    stage 4  WocaR-DQN seeds 4-6 + vanilla seed 6 + exploratory arm (WocaR with the worst-case loss, seeds 1-2)
+    stage 4  WocaR-DQN seeds 4-6 + exploratory arm (WocaR with the worst-case loss, seeds 1-3)
     final    evaluate.py --preset final, report.py
 Every stage is six runs, one per core.
 
@@ -26,15 +26,15 @@ RUN_ROOT = ENTRY / "artifacts" / "run_1"
 TARGET_FRAMES = 1_000_000
 FIRST_SEEDS = [1, 2, 3]             # seeds a robust group starts with (the gates look at these)
 LATER_SEEDS = [4, 5, 6]             # added once the group's gate has passed (6 seeds per group in the end)
-ARM_SEEDS = [1, 2]                  # stage 1: seeds per vanilla arm
+ARM_SEEDS = FIRST_SEEDS             # stage 1: seeds per vanilla arm
 
-# Stage 1 arms: vanilla DQN with different discount factors (folder -> gamma)
-ARMS = {"vanilla_g099": 0.99, "vanilla_g095": 0.95, "vanilla_g090": 0.9}
+# Stage 1 arms: vanilla DQN with different discount factors (folder -> gamma). The laptop pilot (one seed, 1M frames)
+# ruled out 0.99 (17-21% crashes, slow learning); 0.97 and 0.9 both reached 10-14%.
+ARMS = {"vanilla_g097": 0.97, "vanilla_g090": 0.9}
 
 # folder under the run root -> (config file, label, role)
 GROUPS = {
-    "vanilla_g099": ("config_highway_vanilla.json", "Vanilla DQN (gamma 0.99)", "vanilla"),
-    "vanilla_g095": ("config_highway_vanilla.json", "Vanilla DQN (gamma 0.95)", "vanilla"),
+    "vanilla_g097": ("config_highway_vanilla.json", "Vanilla DQN (gamma 0.97)", "vanilla"),
     "vanilla_g090": ("config_highway_vanilla.json", "Vanilla DQN (gamma 0.9)", "vanilla"),
     "sa_dqn": ("config_highway_sadqn.json", "SA-DQN", "sa"),
     "sa_dqn_b": ("config_highway_sadqn.json", "SA-DQN (retry)", "sa"),
@@ -45,7 +45,7 @@ GROUPS = {
 
 DEFAULTS = {"kappa": 0.02, "worst_ratio": 0.5, "sa_group": "sa_dqn", "wocar_group": "wocar_dqn"}
 # Placeholder values for --smoke runs before the gates have set the real ones (never used for a real run).
-SMOKE_PARAMS = {"vanilla_group": "vanilla_g099", "gamma": 0.99, "hinge_c": 0.1, "epsilon": 0.005}
+SMOKE_PARAMS = {"vanilla_group": "vanilla_g097", "gamma": 0.97, "hinge_c": 0.1, "epsilon": 0.005}
 
 EPSILON_SEARCH = [0.0, 0.005, 0.01, 0.02, 0.05, 0.1]   # attack sweep on vanilla that picks the rev 4 epsilon
 
@@ -115,7 +115,7 @@ def stage_runs(stage, params):
     if stage == 2:
         if params.get("gate2") not in (None, "RETRY") and not params.get("smoke"):
             raise SystemExit(f"NOT ALLOWED: stage 2 is already decided (gate2={params.get('gate2')}).")
-        return [(van, s) for s in (3, 4, 5)] + [(sa, s) for s in FIRST_SEEDS]
+        return [(van, s) for s in LATER_SEEDS] + [(sa, s) for s in FIRST_SEEDS]
     need(params, "gate2", "PASS", f"stage {stage} before gate.py stage2 has passed")
     if stage == 3:
         if params.get("gate3") not in (None, "RETRY") and not params.get("smoke"):
@@ -123,7 +123,7 @@ def stage_runs(stage, params):
         return [(sa, s) for s in LATER_SEEDS] + [(woc, s) for s in FIRST_SEEDS]
     need(params, "gate3", "PASS", f"stage {stage} before gate.py stage3 has passed")
     if stage == 4:
-        return [(woc, s) for s in LATER_SEEDS] + [(van, 6)] + [("wocar_wcl_dqn", s) for s in (1, 2)]
+        return [(woc, s) for s in LATER_SEEDS] + [("wocar_wcl_dqn", s) for s in FIRST_SEEDS]
     raise SystemExit(f"unknown stage {stage}")
 
 

@@ -65,8 +65,8 @@ python run_orchestrator.py --stage 1 --smoke
   `6/6 runs finished`. If either check fails, stop and report.
 - Log it: `python -c "import rev4; rev4.log('Step 0 done: imports, dry run and smoke run ok')"`
 
-## Step 1 — stage 1: vanilla DQN with three discount factors (about 5 hours)
-**1a. Start the training.** Six runs: `vanilla_g099`, `vanilla_g095`, `vanilla_g090` × seeds 1 and 2.
+## Step 1 — stage 1: vanilla DQN with two discount factors (about 5 hours)
+**1a. Start the training.** Six runs: `vanilla_g097` and `vanilla_g090` × seeds 1, 2 and 3.
 ```
 python run_orchestrator.py --stage 1
 ```
@@ -97,7 +97,7 @@ stop and report (include the last 30 lines of that run's `run.err` and `train.lo
 **1f. Commit.**
 ```
 git -C ../.. add -- "entries/06_wocar_dqn_r4/artifacts/run_1/*/model_*/train.log" "entries/06_wocar_dqn_r4/artifacts/run_1/*/model_*/frame_*.pth" "entries/06_wocar_dqn_r4/artifacts/run_1/*/model_*/tensorboard/*" entries/06_wocar_dqn_r4/RUNLOG.md entries/06_wocar_dqn_r4/PROGRESS.md entries/06_wocar_dqn_r4/progress.json
-git -C ../.. commit -m "data(rev4): stage 1 training (vanilla, three discount factors)"
+git -C ../.. commit -m "data(rev4): stage 1 training (vanilla, two discount factors)"
 ```
 (`git -C ../..` runs git from the repo root, so the paths start at `entries/`. Never add `.npy` files. This same
 command is used after every training stage; only the message changes. Before committing, `git -C ../.. status --short`
@@ -165,7 +165,7 @@ python gate.py stage3
 python run_orchestrator.py --stage 4          # terminal 1
 python monitoring.py --stage 4                # terminal 2
 ```
-This trains WocaR seeds 4–6, vanilla seed 6 and `wocar_wcl_dqn` seeds 1–2. Affinity (1c), wait, finish, commit
+This trains WocaR seeds 4–6 and `wocar_wcl_dqn` seeds 1–3. Affinity (1c), wait, finish, commit
 (message `stage 4 training`). There is no gate after this stage.
 
 ## Step 7 — final evaluation and report (about 3 hours)
