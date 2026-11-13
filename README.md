@@ -7,6 +7,7 @@ Robust DQN for autonomous driving: **vanilla DQN vs SA-DQN vs WocaR-DQN** on `hi
 | 1 | `entries/03_wocar_dqn` | 1 seed per model, 4M frames | [`artifacts/report.html`](entries/03_wocar_dqn/artifacts/report.html) | WocaR looked best, but with one seed we could not tell luck from effect |
 | 2 | `entries/04_wocar_dqn_r2` | 6 seeds per model, 4M frames | [`artifacts/run_1/report.html`](entries/04_wocar_dqn_r2/artifacts/run_1/report.html) | With six seeds there was no real difference: the robust term was far too weak |
 | 3 | `entries/05_wocar_dqn_r3` | 7 seeds per model, 2M frames | [`artifacts/run_2/report.html`](entries/05_wocar_dqn_r3/artifacts/run_2/report.html) | Stronger robust training works: WocaR is clearly the most robust, SA-DQN is not reliably better than vanilla |
+| 4 | `entries/06_wocar_dqn_r4` | planned: 6 seeds per model, 1M frames, in gated stages | not run yet | Prepared on branch `rev4x`: fixes the base learner first (see the entry's README and `docs/rev4x_runbook.md`) |
 
 Throughout, **crash rate under attack** is the main metric. Attacks: PGD, worst-Q (forces the lowest-Q action), MinBest (logit-margin attack) and random L∞ noise, all with budget ε on the normalised observation. "Gradient attacks" below means the mean over PGD, worst-Q and MinBest. Tables show the evaluated checkpoint (see each rev).
 
@@ -122,5 +123,5 @@ Goal: a setup in which robust training can show a gap, with much less compute. R
 
 ## More
 - Evaluation files: open the three `report.html` files above. Rebuild: `python3 entries/05_wocar_dqn_r3/report.py <run folder> --eval-dir <cache> ...` (rev1: `python3 entries/03_wocar_dqn/make_report.py`). Rev3 evaluation: `python evaluate.py artifacts/run_2` inside `entries/05_wocar_dqn_r3`.
-- Docs: `docs/rev3.md` (changes, decisions, compute and differences from the paper and the authors' code), `docs/rev4_plan.md` (draft plan for a possible rev 4), `docs/paper.pdf` (the WocaR-RL paper).
+- Docs: `docs/rev3.md` (changes, decisions, compute and differences from the paper and the authors' code), `docs/rev4x_runbook.md` (step-by-step for the rev 4 training agent; the reasoning is in `entries/06_wocar_dqn_r4/README.md`), `docs/rev4_plan.md` (earlier draft plan for a rev 4, superseded by the runbook), `docs/paper.pdf` (the WocaR-RL paper).
 - `docs/archive/`: finished or historical material: code verification of rev2 (`rev2_verification/`), rev1 background (`wocar_context.md`), the agent task files used to run rev3 (`r3_agent_runbook.md`, `desktop_extra_seeds.md`), and old briefs and runbooks.

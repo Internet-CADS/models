@@ -1,0 +1,19 @@
+torchvision>=0.6
+numpy>=1.18
+torch>=1.5.0
+matplotlib>=3.1.3
+opencv-python
+setproctitle
+ipython
+termcolor
+packaging
+appdirs
+oslo.concurrency
+gym[atari]
+gpustat
+pygame
+highway-env
+tensorboard
+
+# posix_ipc and cpprb are optional for the asynchronous/optimized replay paths.
+# The vanilla highway baseline uses the synchronous Python replay buffer.
