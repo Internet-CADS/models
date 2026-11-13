@@ -1,15 +1,25 @@
 # Rev 4 runbook (for the agent on the training desktop)
 
 You are an agent on the user's Windows training desktop (6 cores / 12 threads). This file is your complete task
-description. Read it fully, then work through the steps in order. The whole thing takes about 25 hours of machine time
-(about 5 more for each retry).
+description: you need no other instructions. Read it fully, then work through the steps in order, starting at Step 0.
+The whole thing takes about 25 hours of machine time (about 5 more for each retry).
+
+**What the user has authorised** (you do not need to ask for these): pulling and pushing branch `rev4x` with normal
+pushes, the progress commits and pushes made by `monitoring.py --push`, the commits listed in this runbook, and
+changing the CPU affinity of the `train.py` processes (step 1c). Anything else that changes the repository, the
+training runs or the machine needs the user's go-ahead.
+
+**When to contact the user:** when a gate prints FAIL, when anything in "If something goes wrong" says stop, and at
+the end (Step 8). Everything else you do on your own and record in `RUNLOG.md`.
 
 **If you lose context at any point:** read `entries/06_wocar_dqn_r4/RUNLOG.md` (what has been done), then
 `entries/06_wocar_dqn_r4/rev4_params.json` (which gates have passed), then check whether `train.py` processes are
 running. Continue at the first step that is not finished. Never start a step twice in parallel.
 
 ## What this is
-- Repository: https://github.com/Internet-CADS/models (already cloned on this machine; use that clone). Branch: **`rev4x`**.
+- Repository: https://github.com/Internet-CADS/models (already cloned on this machine, with its `.venv`; use that
+  clone). Branch: **`rev4x`**. If you were given a link to this file, it is `docs/rev4x_runbook.md` on that branch;
+  Step 0 checks the branch out, after which you work only in the local clone.
 - Project: robust DQN on highway-env; vanilla DQN vs SA-DQN vs WocaR-DQN. Rev 4 lives in `entries/06_wocar_dqn_r4/`.
   `entries/06_wocar_dqn_r4/README.md` explains what rev 4 changes and why; you do not need it to do the task.
 - Rev 4 is trained in **four stages of six runs each** (one run per core, 1,000,000 frames, about 5 hours per stage).
@@ -32,16 +42,19 @@ running. Continue at the first step that is not finished. Never start a step twi
 - Git: stay on `rev4x`. Never touch `main`, never force-push. Commit with **explicit paths only** (never
   `git add -A` / `git add .`). Keep LF line endings. End every commit message with
   `Co-Authored-By: <your model name> <noreply@anthropic.com>`.
-- **Pushing:** commit locally after every step (the commit commands are given). Push (`git push origin rev4x`,
-  a normal push) only if the user has told you that pushing `rev4x` is allowed; if you were not told, do not push,
-  and say at the end what is left to push.
+- **Pushing:** after every commit in this runbook, push it: `git -C ../.. push origin rev4x` (a normal push). If the
+  push is rejected because the remote moved, run `git -C ../.. pull --rebase origin rev4x` and push again; if the
+  rebase conflicts, run `git -C ../.. rebase --abort`, note it in `RUNLOG.md` and carry on (push again after the next
+  commit). A failed push never stops the training.
 
 ## Progress reporting
 Three files in `entries/06_wocar_dqn_r4/`, all plain text:
 - `RUNLOG.md`: the progress file. The orchestrator, `evaluate.py` and `gate.py` append to it by themselves (every
   finished stage, evaluation and gate verdict with its table). **You** add a short line whenever you start a step,
   see a problem, or apply the CPU affinity (use the helper below; it adds the timestamp).
-- `PROGRESS.md` / `progress.json`: live training progress, rewritten every 15 minutes by `monitoring.py`.
+- `PROGRESS.md` / `progress.json`: live training progress (frames, speed and time left per run). `monitoring.py --push`
+  rewrites them every 15 minutes during a stage, commits only these two files and pushes `rev4x`, so the user can
+  follow along on GitHub.
 - `rev4_params.json`: the gates' decisions. Read it, never edit it.
 
 Helper to add a line to `RUNLOG.md`:
@@ -72,7 +85,7 @@ python run_orchestrator.py --stage 1
 ```
 **1b. Start the monitor** in a second terminal:
 ```
-python monitoring.py --stage 1
+python monitoring.py --stage 1 --push
 ```
 Both must keep running for the whole stage: use separate terminals / tmux windows, or start them as detached
 background processes with their output redirected to a file. If the machine or your session restarts, start the same
@@ -130,7 +143,7 @@ breaks.
 ## Step 4 — stage 2: more vanilla seeds + SA-DQN (about 5 hours, then about 40 minutes of evaluation)
 ```
 python run_orchestrator.py --stage 2          # terminal 1
-python monitoring.py --stage 2                # terminal 2
+python monitoring.py --stage 2 --push         # terminal 2
 ```
 Do 1c (affinity) again, wait as in 1d, finish as in 1e, commit as in 1f (message `stage 2 training`). Then:
 ```
@@ -146,7 +159,7 @@ python gate.py stage2
 ## Step 5 — stage 3: more SA-DQN seeds + WocaR-DQN (about 5 hours, then about 40 minutes of evaluation)
 ```
 python run_orchestrator.py --stage 3          # terminal 1
-python monitoring.py --stage 3                # terminal 2
+python monitoring.py --stage 3 --push         # terminal 2
 ```
 Affinity (1c), wait, finish, commit (message `stage 3 training`). Then:
 ```
@@ -163,7 +176,7 @@ python gate.py stage3
 ## Step 6 — stage 4: remaining seeds + exploratory arm (about 5 hours)
 ```
 python run_orchestrator.py --stage 4          # terminal 1
-python monitoring.py --stage 4                # terminal 2
+python monitoring.py --stage 4 --push         # terminal 2
 ```
 This trains WocaR seeds 4–6 and `wocar_wcl_dqn` seeds 1–3. Affinity (1c), wait, finish, commit
 (message `stage 4 training`). There is no gate after this stage.
