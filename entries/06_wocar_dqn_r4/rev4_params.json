@@ -1,0 +1,10 @@
+{
+  "gamma": 0.9,
+  "gate1": "PASS",
+  "hinge_c": 0.031,
+  "kappa": 0.02,
+  "sa_group": "sa_dqn",
+  "vanilla_group": "vanilla_g090",
+  "wocar_group": "wocar_dqn",
+  "worst_ratio": 0.5
+}
