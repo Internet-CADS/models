@@ -2,6 +2,7 @@
   "epsilon": 0.005,
   "gamma": 0.9,
   "gate1": "PASS",
+  "gate2": "PASS",
   "gate_eps": "PASS",
   "hinge_c": 0.031,
   "kappa": 0.02,
