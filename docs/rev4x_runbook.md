@@ -158,7 +158,7 @@ git -C ../.. add -- entries/06_wocar_dqn_r4/RUNLOG.md entries/06_wocar_dqn_r4/re
 git -C ../.. commit -m "data(rev4): gate 1"
 ```
 
-## Step 3 — pick the attack budget ε (about 30 minutes)
+## Step 3 — pick the attack budget ε (about 40 minutes)
 ```
 python evaluate.py --preset epsilon --workers 6
 python gate.py epsilon
@@ -168,7 +168,7 @@ breaks.
 - **PASS:** go to step 4. **FAIL:** stop and ask (as in step 2).
 - Commit as after gate 1 (message `gate epsilon`).
 
-## Step 4 — stage 2: more vanilla seeds + SA-DQN (about 5 hours, then about 40 minutes of evaluation)
+## Step 4 — stage 2: more vanilla seeds + SA-DQN (about 5 hours, then about 1 hour of evaluation)
 ```
 python run_orchestrator.py --stage 2          # terminal 1
 python monitoring.py --stage 2 --push         # terminal 2
@@ -184,7 +184,7 @@ python gate.py stage2
 - **FAIL:** stop and ask (as in step 2).
 - Commit as after gate 1 (message `gate 2`).
 
-## Step 5 — stage 3: more SA-DQN seeds + WocaR-DQN (about 5 hours, then about 40 minutes of evaluation)
+## Step 5 — stage 3: more SA-DQN seeds + WocaR-DQN (about 5 hours, then about 1 hour of evaluation)
 ```
 python run_orchestrator.py --stage 3          # terminal 1
 python monitoring.py --stage 3 --push         # terminal 2
@@ -209,12 +209,12 @@ python monitoring.py --stage 4 --push         # terminal 2
 This trains WocaR seeds 4–6 and `wocar_wcl_dqn` seeds 1–3. Affinity (1c), wait, finish, commit
 (message `stage 4 training`). There is no gate after this stage.
 
-## Step 7 — final evaluation and report (about 3 hours)
+## Step 7 — final evaluation and report (about 4–5 hours)
 ```
 python evaluate.py --preset final --workers 6
 python report.py
 ```
-- The evaluation runs every group and seed at its group's peak checkpoint, 300 episodes, four attacks, five ε values,
+- The evaluation runs every group and seed at its group's peak checkpoint, 300 episodes, four attacks, seven ε values (0 and 0.25–2 × the training ε),
   plus certification. It caches every finished job, so if it is interrupted, run the same command again.
 - `report.py` writes `artifacts/run_1/report.html` and prints one line per group.
 - Commit:

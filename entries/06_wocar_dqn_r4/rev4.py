@@ -47,7 +47,7 @@ DEFAULTS = {"kappa": 0.02, "worst_ratio": 0.5, "sa_group": "sa_dqn", "wocar_grou
 # Placeholder values for --smoke runs before the gates have set the real ones (never used for a real run).
 SMOKE_PARAMS = {"vanilla_group": "vanilla_g097", "gamma": 0.97, "hinge_c": 0.1, "epsilon": 0.005}
 
-EPSILON_SEARCH = [0.0, 0.005, 0.01, 0.02, 0.05, 0.1]   # attack sweep on vanilla that picks the rev 4 epsilon
+EPSILON_SEARCH = [0.0, 0.005, 0.0075, 0.01, 0.015, 0.02, 0.05, 0.1]   # attack sweep on vanilla that picks the rev 4 epsilon
 
 
 def load_params(smoke=False):
@@ -153,7 +153,7 @@ def comparison_groups(params, run_root=RUN_ROOT):
 
 def eval_epsilons(params):
     e = params["epsilon"]
-    return [0.0] + [round(e * k, 6) for k in (0.5, 1.0, 1.5, 2.0)]
+    return [0.0] + [round(e * k, 6) for k in (0.25, 0.5, 0.75, 1.0, 1.5, 2.0)]
 
 
 def preset(name, params, run_root=RUN_ROOT):

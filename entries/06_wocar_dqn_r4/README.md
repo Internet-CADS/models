@@ -44,7 +44,7 @@ That is why γ is a pilot arm and not a fixed choice.
 | Step | Trains | Gate (`gate.py`) | Rule |
 |---|---|---|---|
 | Stage 1 | vanilla × γ 0.97 / 0.9 × seeds 1–3 | `stage1` | mean of the last 3 mini-tests: crash ≤ 15%, return ≥ 18; mean Q within 0.6–1.5 × the discounted return that followed (guards against diverging values). Lowest crash rate among passing arms wins. Sets γ and `hinge_c` (median action gap, clipped to 0.02–0.5). |
-| ε sweep | — (attacks on the chosen arm, ε 0.005–0.1) | `epsilon` | smallest ε ≤ 0.05 at which gradient attacks add ≥ 20 points to vanilla's crash rate |
+| ε sweep | — (attacks on the chosen arm, ε 0.005, 0.0075, 0.01, 0.015, 0.02, 0.05, 0.1) | `epsilon` | smallest ε ≤ 0.05 at which gradient attacks add ≥ 20 points to vanilla's crash rate |
 | Stage 2 | vanilla seeds 4–6, SA-DQN seeds 1–3 | `stage2` | SA-DQN: clean crash ≤ vanilla + 8 points, clean return ≥ 85% of vanilla, certified actions ≥ 50%, PGD flip rate ≤ half of vanilla's. One retry: κ ×5 if too weak, κ ÷4 if too strong. |
 | Stage 3 | SA-DQN seeds 4–6, WocaR seeds 1–3 | `stage3` | WocaR: same driving and certification checks, worst-case critic bounded. One retry with `worst_ratio` 0.2. If it still fails, the final evaluation runs without stage 4. |
 | Stage 4 | WocaR seeds 4–6, `wocar_wcl_dqn` seeds 1–3 | — | — |
