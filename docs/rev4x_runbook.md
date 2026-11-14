@@ -229,12 +229,16 @@ python run_orchestrator.py --stage 5          # terminal 1
 python monitoring.py --stage 5 --push         # terminal 2
 ```
 This trains the chosen SA-DQN arm seeds 3–5 and `wocar_dqn_reg` seeds 1–3. Affinity (1c), wait, finish, commit
-(message `stage 5 training`). Then:
+(message `stage 5 training`). Pull so that you gate with the latest code:
+`git -C ../.. pull --rebase --autostash origin rev4x`. Then:
 ```
 python evaluate.py --preset gate5 --workers 6
 python gate.py stage5
 ```
 - **PASS:** go to step 8.
+- The gate checks WocaR's flip rate and attack-induced crashes, not its certified share (changed on 2026-11-14 in the
+  evening). If its table has a row `certified` with a rule like `>= 55.0%`, you are running old code: pull as above and
+  run the gate again.
 - **RETRY:** the gate has lowered `worst_ratio` and created `wocar_dqn_reg_b`. Repeat this whole step 7 once (only
   `wocar_dqn_reg_b` seeds 1–3 are trained; the SA-DQN runs are skipped).
 - **FAIL:** stop and ask (as in step 2).

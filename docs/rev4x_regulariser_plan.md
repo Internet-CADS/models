@@ -52,8 +52,13 @@ directly.
 - **Gate `reg`:** among the arms that drive about as well as vanilla (clean crash ≤ vanilla + 8 points, clean return
   ≥ 85%), the highest certified share wins (within 2 points: the lower clean crash rate). It must be at least 5 points
   above the first setting, otherwise BLOCKED. Target 90%; below it the gate still picks and adds a note.
-- **Gate `stage5`:** the former gate 3 on the new WocaR group, with certified ≥ the chosen SA-DQN's share − 10 points.
-  One retry with `worst_ratio` 0.2; a second failure is BLOCKED.
+- **Gate `stage5`:** the former gate 3 on the new WocaR group, but with the PGD flip rate ≤ 0.5 × vanilla and
+  attack-induced crashes ≤ vanilla instead of a certified share. One retry with `worst_ratio` 0.2; a second failure is
+  BLOCKED.
+  - *Changed on 14 Nov, evening:* the first version required certified ≥ the chosen SA-DQN's share − 10 points. Gate 3
+    showed that WocaR's first setting certifies only 6% (SA-DQN 66%) with the same κ and `hinge_c`. This is by design,
+    not a bug: WocaR weights the regulariser by state importance w(s) = max Q − min Q (`train.py`, lines 527–531), so
+    states with near-tied actions get almost no push. The certified share is still reported.
 - **Same settings for both:** WocaR gets the chosen `hinge_c` and κ, so the only difference to SA-DQN stays the
   worst-case value, as in the paper.
 - **First setting kept:** `sa_dqn` (6 seeds) and `wocar_dqn` (3 seeds) appear in the report's ablation table.

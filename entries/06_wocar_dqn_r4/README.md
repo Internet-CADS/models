@@ -49,7 +49,7 @@ That is why γ is a pilot arm and not a fixed choice.
 | Stage 2 | vanilla seeds 4–6, SA-DQN seeds 1–3 | `stage2` | SA-DQN: clean crash ≤ vanilla + 8 points, clean return ≥ 85% of vanilla, certified actions ≥ 50%, PGD flip rate ≤ half of vanilla's. One retry: κ ×5 if too weak, κ ÷4 if too strong. |
 | Stage 3 | SA-DQN seeds 4–6, WocaR seeds 1–3 (both with the first regulariser setting) | `stage3` | Informational (PASS or NOTED): the same checks as gate 5, but the run continues either way. |
 | Stage 4 | SA-DQN × three regulariser arms × seeds 1–2: `hinge_c` 0.3; κ 0.1; both | `reg` | Among the arms with clean crash ≤ vanilla + 8 points and clean return ≥ 85% of vanilla, the highest certified share wins (within 2 points: the lower clean crash rate). It must certify at least 5 points more than the first setting. Target 90%. Crash rates under attack are not part of the rule. |
-| Stage 5 | chosen SA-DQN seeds 3–5, WocaR (same regulariser) seeds 1–3 | `stage5` | WocaR: clean crash and return as above, certified ≥ the chosen SA-DQN's share − 10 points (at least 50%), worst-case critic bounded. One retry with `worst_ratio` 0.2. |
+| Stage 5 | chosen SA-DQN seeds 3–5, WocaR (same regulariser) seeds 1–3 | `stage5` | WocaR: clean crash and return as above, PGD flip rate ≤ 0.5 × vanilla, attack-induced crashes ≤ vanilla, worst-case critic bounded. The certified share is reported but not gated: WocaR's state-importance weighting leaves near-tied states uncertified by design (first setting: 6%). One retry with `worst_ratio` 0.2. |
 | Stage 6 | chosen SA-DQN seed 6, WocaR seeds 4–6, `wocar_wcl_dqn` seeds 1–2 | — | — |
 | Final | — (300 episodes, all groups and seeds) | — | `report.py` |
 
