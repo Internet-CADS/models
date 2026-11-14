@@ -5,10 +5,15 @@
   "gate2": "PASS",
   "gate3": "NOTED",
   "gate_eps": "PASS",
+  "gate_reg": "PASS",
   "hinge_c": 0.031,
   "kappa": 0.02,
-  "sa_group": "sa_dqn",
+  "reg_hinge_c": 0.3,
+  "reg_kappa": 0.02,
+  "sa_group": "sa_dqn_c030",
   "vanilla_group": "vanilla_g090",
-  "wocar_group": "wocar_dqn",
+  "weak_sa_group": "sa_dqn",
+  "weak_wocar_group": "wocar_dqn",
+  "wocar_group": "wocar_dqn_reg",
   "worst_ratio": 0.5
 }
