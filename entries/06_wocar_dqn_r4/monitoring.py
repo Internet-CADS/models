@@ -337,7 +337,7 @@ def acquire_lock(repo):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--run-root", help="default artifacts/run_1")
-    ap.add_argument("--stage", type=int, choices=[1, 2, 3, 4], help="show the runs of this stage (default: every run folder found)")
+    ap.add_argument("--stage", type=int, choices=[1, 2, 3, 4, 5, 6], help="show the runs of this stage (default: every run folder found)")
     ap.add_argument("--target-frames", type=int)
     ap.add_argument("--progress-dir", help="where PROGRESS.md/progress.json are written (default: this entry folder)")
     ap.add_argument("--repo-root", help="where PROGRESS.md/progress.json live and get committed (default: git toplevel)")

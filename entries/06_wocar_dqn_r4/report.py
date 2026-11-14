@@ -198,6 +198,42 @@ def headline_section(ev, kind):
     return "".join(sec)
 
 
+def ablation_section(ev, ev_gate, kind, params, run_dir):
+    """Regulariser ablation: every SA-DQN and WocaR-DQN setting that was trained, at the training epsilon."""
+    order = [params.get("weak_sa_group", "sa_dqn"), *rev4.REG_ARMS, params.get("weak_wocar_group", "wocar_dqn"), params.get("wocar_group")]
+    cols = [("clean_crash", "crash, no attack"), ("certified", "certified actions"), ("flip", "actions flipped (PGD)"),
+            ("increase", "attack-induced crash"), ("noise_increase", "random-noise-induced crash")]
+    rows = ""
+    for g in dict.fromkeys(x for x in order if x):
+        payloads = ev.get((g, kind)) or ev_gate.get((g, kind))
+        if not payloads:
+            continue
+        try:
+            hinge_c, kappa = rev4.regulariser(g, params)
+        except SystemExit:
+            continue
+        m = group_metrics(payloads, TRAIN_EPS)
+        cells = ""
+        for key, _ in cols:
+            if key in m:
+                mean, sd = _ms(m[key])
+                cells += f"<td>{mean * 100:.1f}% &plusmn; {sd * 100:.1f}</td>"
+            else:
+                cells += "<td>&ndash;</td>"
+        episodes = next(iter(payloads.values()))["settings"]["episodes"]
+        used = " (in the comparison above)" if g in (params.get("sa_group"), params.get("wocar_group")) else ""
+        rows += (f"<tr><td><b>{html.escape(rev4.label_for(g))}</b>{used}</td><td>{hinge_c:g}</td><td>{kappa:g}</td>"
+                 f"<td>{len(payloads)}</td><td>{episodes}</td>{cells}</tr>")
+    if not rows:
+        return ""
+    head = "<tr><th>group</th><th>hinge_c</th><th>kappa</th><th>seeds</th><th>episodes per seed</th>" + "".join(f"<th>{n}</th>" for _, n in cols) + "</tr>"
+    return ('<h1 class="sect">Regulariser ablation</h1><p class="sub">Every regulariser setting that was trained, at the training '
+            f'epsilon ({TRAIN_EPS:g}). Mean &plusmn; std over seeds. kappa weighs the regulariser against the TD loss; hinge_c is the '
+            'certified margin up to which a state keeps being pushed. The setting of the comparison was chosen on the certified '
+            'share of seeds 1&ndash;2 (gate.py reg), not on crash rates. Groups outside the comparison come from the 100-episode '
+            f'gate evaluations.</p><section class="card"><div class="scroll"><table class="data">{head}{rows}</table></div></section>')
+
+
 def load_eval(cache_dir):
     """{(group, kind): {seed: payload}} using the newest JSON per (group, seed, frame)."""
     import json
@@ -395,7 +431,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir", type=Path, nargs="?", default=rev4.RUN_ROOT)
     ap.add_argument("-o", "--output", type=Path, default=None)
-    ap.add_argument("--preset", default="final", choices=["epsilon", "gate2", "gate3", "final"],
+    ap.add_argument("--preset", default="final", choices=["epsilon", "gate2", "gate3", "reg", "gate5", "final"],
                     help="which evaluate.py cache to read (default final)")
     ap.add_argument("--groups", default=None, help="comma list of group folders (default: the comparison groups from rev4_params.json, else the stage 1 arms)")
     ap.add_argument("--eval-dir", type=Path, default=None,
@@ -411,7 +447,7 @@ def main():
     TOTAL_FRAMES = args.total_frames if args.total_frames is not None else TOTAL_FRAMES
     EXPECTED_SEEDS = args.expected_seeds if args.expected_seeds is not None else EXPECTED_SEEDS
     run_dir = args.run_dir
-    cache = {"epsilon": "epsilon", "gate2": "gate", "gate3": "gate", "final": "final"}[args.preset]
+    cache = {"epsilon": "epsilon", "final": "final"}.get(args.preset, "gate")
     out = args.output or run_dir / ("report.html" if cache == "final" else f"report_{cache}.html")
     names = args.groups.split(",") if args.groups else (rev4.comparison_groups(params, run_dir) or [g for g in rev4.ARMS if (run_dir / g).is_dir()])
     GROUPS[:] = [(g, rev4.label_for(g)) for g in names]
@@ -462,6 +498,8 @@ def main():
     eval_dir = args.eval_dir or Path(__file__).resolve().parent / "artifacts" / "eval_cache" / run_dir.resolve().name / cache
     ev = load_eval(eval_dir) if eval_dir.is_dir() else {}
     robust = headline_section(ev, "peak") + robustness_section(ev, "peak")   # only the peak-of-mean checkpoints are reported
+    if robust and cache == "final" and (eval_dir.parent / "gate").is_dir():
+        robust += ablation_section(ev, load_eval(eval_dir.parent / "gate"), "peak", params, run_dir)
     if not robust:
         robust = '<p class="sub">No evaluation results found (run evaluate.py to add robustness sections).</p>'
 

@@ -4,9 +4,11 @@
     python gate.py stage1     # after stage 1 training + diagnose.py --stage1: pick the vanilla arm
     python gate.py epsilon    # after evaluate.py --preset epsilon: pick the training/attack epsilon
     python gate.py stage2     # after stage 2 training + evaluate.py --preset gate2: is SA-DQN healthy?
-    python gate.py stage3     # after stage 3 training + evaluate.py --preset gate3: is WocaR-DQN healthy?
+    python gate.py stage3     # after stage 3 training + evaluate.py --preset gate3: WocaR-DQN, first setting (informational)
+    python gate.py reg        # after stage 4 training + evaluate.py --preset reg: pick the regulariser (hinge_c, kappa)
+    python gate.py stage5     # after stage 5 training + evaluate.py --preset gate5: is WocaR-DQN healthy?
 
-The verdict is PASS, RETRY (stages 2 and 3 only, once: the gate changes one hyperparameter and the stage is trained again
+The verdict is PASS, RETRY (stages 2 and 5 only, once: the gate changes one hyperparameter and the stage is trained again
 into a new folder) or FAIL (stop and report to the user). Decisions go to rev4_params.json, which the other scripts
 read; the printed table is also appended to RUNLOG.md. Exit code: 0 = PASS, 2 = RETRY, 1 = FAIL.
 A gate that has already been decided refuses to run again (--force to recompute, e.g. after fixing a broken evaluation).
@@ -38,8 +40,12 @@ RETURN_SHARE = 0.85       # gates 2/3: clean return at least this share of vanil
 CERT_MIN = 0.5            # gates 2/3: certified action ratio at the training epsilon
 FLIP_SHARE = 0.5          # gate 2: PGD flip rate at most this share of vanilla's
 KAPPA_UP, KAPPA_DOWN = 5.0, 0.25   # gate 2 retry: regulariser too weak / too strong
-WORST_RATIO_RETRY = 0.2   # gate 3 retry: weaker worst-case mixing (first attempt: 0.5)
-WORST_Q_MIN = -5.0        # gate 3: the worst-case critic must stay bounded (a crash is -2 and ends the episode)
+WORST_RATIO_RETRY = 0.2   # gate 5 retry: weaker worst-case mixing (first attempt: 0.5)
+WORST_Q_MIN = -5.0        # gates 3/5: the worst-case critic must stay bounded (a crash is -2 and ends the episode)
+REG_CERT_TARGET = 0.90    # reg gate: certified share we aim for (below it the gate still picks, and says so)
+REG_CERT_GAIN = 0.05      # reg gate: the chosen arm must certify at least this much more than the first setting
+REG_CERT_TIE = 0.02       # reg gate: arms this close to the best certified share count as tied (lower clean crash wins)
+WOCAR_CERT_SLACK = 0.10   # gate 5: WocaR's certified share may be at most this much below the chosen SA-DQN's
 
 WORST_Q_RE = re.compile(r"avg batch worst q: (-?[\d.eE+-]+|nan)")
 
@@ -64,7 +70,7 @@ def finish(name, verdict, lines, next_step):
     rev4.log(text)
     if next_step.startswith("STOP"):
         rev4.blocked(f"Gate `{name}` failed (table above). {next_step}")
-    sys.exit({"PASS": 0, "RETRY": 2}.get(verdict, 1))
+    sys.exit({"PASS": 0, "NOTED": 0, "RETRY": 2}.get(verdict, 1))
 
 
 def already(params, key, force):
@@ -162,12 +168,12 @@ def epsilon(run_dir, params, force):
 
 
 # ----------------------------------------------------------------------------- gates 2 and 3
-def health(m, van):
+def health(m, van, cert_min=CERT_MIN):
     """Checks shared by the SA-DQN and WocaR gates: drives about as well as vanilla, and the regulariser took effect."""
     return {
         "clean crash": m["clean_crash"] <= van["clean_crash"] + CLEAN_CRASH_SLACK,
         "clean return": m["clean_return"] >= RETURN_SHARE * van["clean_return"],
-        "certified": m.get("certified") is not None and m["certified"] >= CERT_MIN,
+        "certified": m.get("certified") is not None and m["certified"] >= cert_min,
     }
 
 
@@ -221,49 +227,127 @@ def last_worst_q(log):
     return float(vals[-1]) if vals else float("nan")
 
 
-def stage3(run_dir, params, force):
-    rev4.need(params, "gate2", "PASS", "gate 3 before gate.py stage2 has passed")
-    already(params, "gate3", force)
-    eps, van, sa, woc = params["epsilon"], params["vanilla_group"], params["sa_group"], params["wocar_group"]
-    ev = report.load_eval(cache_dir(run_dir, "gate"))
-    mv, nv = group_eval(ev, van, eps, 6)
-    ms, ns = group_eval(ev, sa, eps, 3)
-    mw, nw = group_eval(ev, woc, eps, 3)
-    checks = health(mw, mv)
+def wocar_checks(run_dir, params, woc, mw, mv, cert_min):
+    checks = health(mw, mv, cert_min)
     wq = [last_worst_q(run_dir / woc / f"model_{s}" / "train.log") for s in rev4.FIRST_SEEDS]
     wq_max = 0.6 / (1 - params["gamma"])
     checks["worst-case critic"] = all(math.isfinite(q) and WORST_Q_MIN <= q <= wq_max for q in wq)
+    rows = [["clean crash", f"<= vanilla + {fmt_pct(CLEAN_CRASH_SLACK)}", "ok" if checks["clean crash"] else "FAILED"],
+            ["clean return", f">= {RETURN_SHARE:g} x vanilla", "ok" if checks["clean return"] else "FAILED"],
+            ["certified", f">= {fmt_pct(cert_min)}", "ok" if checks["certified"] else "FAILED"],
+            ["worst-case critic", f"last worst-Q of every seed in [{WORST_Q_MIN:g}, {wq_max:g}]: {', '.join(f'{q:.2f}' for q in wq)}",
+             "ok" if checks["worst-case critic"] else "FAILED"]]
+    return checks, rows
+
+
+def stage3(run_dir, params, force):
+    """Informational since 2026-11-14: WocaR-DQN with the first regulariser setting. Never retries, never stops."""
+    rev4.need(params, "gate2", "PASS", "gate 3 before gate.py stage2 has passed")
+    if params.get("gate3") is not None and not force:
+        sys.exit(f"gate already decided: gate3={params['gate3']} (rev4_params.json). Nothing to do; continue with the runbook.")
+    eps, van, sa, woc = params["epsilon"], params["vanilla_group"], params["sa_group"], params["wocar_group"]
+    ev = report.load_eval(cache_dir(run_dir, "gate"))
+    mv, nv = group_eval(ev, van, eps, 6)
+    ms, ns = group_eval(ev, sa, eps, 6)
+    mw, nw = group_eval(ev, woc, eps, 3)
+    checks, rows = wocar_checks(run_dir, params, woc, mw, mv, CERT_MIN)
     lines = [f"At the training epsilon {eps} (100 episodes per seed, peak-of-mean checkpoints).", "",
              table(COMPARE_HEAD, compare_rows([van, sa, woc], {van: mv, sa: ms, woc: mw}, {van: nv, sa: ns, woc: nw})), "",
-             table(["check", "rule", "result"], [
-                 ["clean crash", f"<= vanilla + {fmt_pct(CLEAN_CRASH_SLACK)}", "ok" if checks["clean crash"] else "FAILED"],
-                 ["clean return", f">= {RETURN_SHARE:g} x vanilla", "ok" if checks["clean return"] else "FAILED"],
-                 ["certified", f">= {fmt_pct(CERT_MIN)}", "ok" if checks["certified"] else "FAILED"],
-                 ["worst-case critic", f"last worst-Q of every seed in [{WORST_Q_MIN:g}, {wq_max:g}]: {', '.join(f'{q:.2f}' for q in wq)}",
-                  "ok" if checks["worst-case critic"] else "FAILED"]]),
-             f"\nworst_ratio = {params['worst_ratio']}, group folder = {woc}. "
+             table(["check", "rule", "result"], rows),
+             f"\nworst_ratio = {params['worst_ratio']}, hinge_c = {params['hinge_c']}, kappa = {params['kappa']}, group folder = {woc}. "
+             "This gate is informational: these groups are the first regulariser setting, kept for the ablation. "
+             "The run continues with stage 4 whatever the checks say (docs/rev4x_regulariser_plan.md)."]
+    verdict = "PASS" if all(checks.values()) else "NOTED"
+    params["gate3"] = verdict
+    rev4.save_params(params)
+    finish("stage3", verdict, lines, "THE RUNBOOK CHANGED on 2026-11-14: read docs/rev4x_runbook.md again from step 6, then "
+                                     "`python run_orchestrator.py --stage 4` (runbook step 6: SA-DQN with a stronger regulariser).")
+
+
+def reg(run_dir, params, force):
+    rev4.decided(params, "gate3", "the reg gate before gate.py stage3 has run")
+    already(params, "gate_reg", force)
+    eps, van = params["epsilon"], params["vanilla_group"]
+    weak = params.get("weak_sa_group", params["sa_group"])
+    ev = report.load_eval(cache_dir(run_dir, "gate"))
+    mv, nv = group_eval(ev, van, eps, 6)
+    metrics, counts = {van: mv}, {van: nv}
+    metrics[weak], counts[weak] = group_eval(ev, weak, eps, 3)
+    rows, ok = [], {}
+    for arm in rev4.REG_ARMS:
+        m, n = group_eval(ev, arm, eps, len(rev4.REG_SEEDS))
+        metrics[arm], counts[arm] = m, n
+        h = health(m, mv, 0.0)
+        healthy = h["clean crash"] and h["clean return"]
+        hinge_c, kappa = rev4.regulariser(arm, params)
+        rows.append([arm, hinge_c, kappa, "ok" if h["clean crash"] else "FAILED", "ok" if h["clean return"] else "FAILED", fmt_pct(m.get("certified"))])
+        if healthy and m.get("certified") is not None:
+            ok[arm] = m
+    groups = [van, weak, *rev4.REG_ARMS]
+    lines = [f"At the training epsilon {eps} (100 episodes per seed, peak-of-mean checkpoints). "
+             f"First setting ({weak}): hinge_c {params['hinge_c']}, kappa {params['kappa']}.", "",
+             table(COMPARE_HEAD, compare_rows(groups, metrics, counts)), "",
+             table(["arm", "hinge_c", "kappa", f"clean crash <= vanilla + {fmt_pct(CLEAN_CRASH_SLACK)}", f"clean return >= {RETURN_SHARE:g} x vanilla", "certified"], rows), "",
+             f"Rule: among the arms that drive about as well as vanilla, the highest certified share wins (within "
+             f"{fmt_pct(REG_CERT_TIE)}: the lower clean crash rate); it must be at least {fmt_pct(REG_CERT_GAIN)} above the "
+             f"first setting. Target: {fmt_pct(REG_CERT_TARGET)}. The crash numbers under attack are shown for "
+             "information; they are deliberately not part of the rule."]
+    base_cert = metrics[weak].get("certified") or 0.0
+    best = max((m["certified"] for m in ok.values()), default=None)
+    if best is None or best < base_cert + REG_CERT_GAIN:
+        params["gate_reg"] = "FAIL"
+        rev4.save_params(params)
+        why = "no arm drives about as well as vanilla" if best is None else "no healthy arm certifies clearly more states than the first setting"
+        finish("reg", "FAIL", lines, f"STOP. A stronger regulariser did not work: {why}. Report this table to the user; do not train anything else.")
+    arm = min((a for a, m in ok.items() if m["certified"] >= best - REG_CERT_TIE), key=lambda a: ok[a]["clean_crash"])
+    hinge_c, kappa = rev4.regulariser(arm, params)
+    params.update(gate_reg="PASS", weak_sa_group=weak, weak_wocar_group="wocar_dqn", sa_group=arm, wocar_group="wocar_dqn_reg",
+                  reg_hinge_c=hinge_c, reg_kappa=kappa, worst_ratio=rev4.DEFAULTS["worst_ratio"])
+    rev4.save_params(params)
+    lines.append(f"\nChosen arm: **{arm}** (hinge_c **{hinge_c}**, kappa **{kappa}**, certified {fmt_pct(ok[arm]['certified'])}). "
+                 f"It is now the SA-DQN group of the comparison; WocaR-DQN is trained with the same regulariser into `wocar_dqn_reg`.")
+    if ok[arm]["certified"] < REG_CERT_TARGET:
+        lines.append(f"Note: the chosen arm is below the {fmt_pct(REG_CERT_TARGET)} target. The run continues; mention this in the final message.")
+    finish("reg", "PASS", lines, "`python run_orchestrator.py --stage 5` (runbook step 7).")
+
+
+def stage5(run_dir, params, force):
+    rev4.need(params, "gate_reg", "PASS", "gate 5 before gate.py reg has passed")
+    already(params, "gate5", force)
+    eps, van, sa, woc = params["epsilon"], params["vanilla_group"], params["sa_group"], params["wocar_group"]
+    ev = report.load_eval(cache_dir(run_dir, "gate"))
+    mv, nv = group_eval(ev, van, eps, 6)
+    ms, ns = group_eval(ev, sa, eps, 5)
+    mw, nw = group_eval(ev, woc, eps, 3)
+    cert_min = max(CERT_MIN, (ms.get("certified") or 0.0) - WOCAR_CERT_SLACK)
+    checks, rows = wocar_checks(run_dir, params, woc, mw, mv, cert_min)
+    lines = [f"At the training epsilon {eps} (100 episodes per seed, peak-of-mean checkpoints).", "",
+             table(COMPARE_HEAD, compare_rows([van, sa, woc], {van: mv, sa: ms, woc: mw}, {van: nv, sa: ns, woc: nw})), "",
+             table(["check", "rule", "result"], rows),
+             f"\nworst_ratio = {params['worst_ratio']}, hinge_c = {params['reg_hinge_c']}, kappa = {params['reg_kappa']}, group folder = {woc}. "
+             f"The certified rule is the chosen SA-DQN's share minus {fmt_pct(WOCAR_CERT_SLACK)} (at least {fmt_pct(CERT_MIN)}). "
              "Whether WocaR beats SA-DQN is the result of the experiment, not a gate."]
     if all(checks.values()):
-        params["gate3"] = "PASS"
+        params["gate5"] = "PASS"
         rev4.save_params(params)
-        finish("stage3", "PASS", lines, "`python run_orchestrator.py --stage 4` (runbook step 6).")
-    if woc == "wocar_dqn":
-        params.update(gate3="RETRY", worst_ratio=WORST_RATIO_RETRY, wocar_group="wocar_dqn_b")
+        finish("stage5", "PASS", lines, "`python run_orchestrator.py --stage 6` (runbook step 8).")
+    if woc == "wocar_dqn_reg":
+        params.update(gate5="RETRY", worst_ratio=WORST_RATIO_RETRY, wocar_group="wocar_dqn_reg_b")
         rev4.save_params(params)
-        lines.append(f"\nOne retry with a weaker worst-case mixing: worst_ratio 0.5 -> **{WORST_RATIO_RETRY}**, new group folder `wocar_dqn_b`.")
-        finish("stage3", "RETRY", lines, "repeat runbook step 5 (`python run_orchestrator.py --stage 3` now trains `wocar_dqn_b` seeds 1-3; the SA-DQN runs are skipped).")
-    params["gate3"] = "FAIL"
+        lines.append(f"\nOne retry with a weaker worst-case mixing: worst_ratio 0.5 -> **{WORST_RATIO_RETRY}**, new group folder `wocar_dqn_reg_b`.")
+        finish("stage5", "RETRY", lines, "repeat runbook step 7 (`python run_orchestrator.py --stage 5` now trains `wocar_dqn_reg_b` seeds 1-3; the SA-DQN runs are skipped).")
+    params["gate5"] = "FAIL"
     rev4.save_params(params)
-    finish("stage3", "FAIL", lines, "skip stage 4 and go to the final evaluation (runbook step 7) with what exists; WocaR-DQN is reported as not healthy.")
+    finish("stage5", "FAIL", lines, "STOP. WocaR-DQN is not healthy and the one retry is used up. Report this table to the user; do not train anything else.")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("gate", choices=["stage1", "epsilon", "stage2", "stage3"])
+    ap.add_argument("gate", choices=["stage1", "epsilon", "stage2", "stage3", "reg", "stage5"])
     ap.add_argument("run_dir", type=Path, nargs="?", default=rev4.RUN_ROOT)
     ap.add_argument("--force", action="store_true", help="recompute a gate that is already decided")
     args = ap.parse_args()
-    {"stage1": stage1, "epsilon": epsilon, "stage2": stage2, "stage3": stage3}[args.gate](args.run_dir.resolve(), rev4.load_params(), args.force)
+    {"stage1": stage1, "epsilon": epsilon, "stage2": stage2, "stage3": stage3, "reg": reg, "stage5": stage5}[args.gate](args.run_dir.resolve(), rev4.load_params(), args.force)
 
 
 if __name__ == "__main__":

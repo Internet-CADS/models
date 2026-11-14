@@ -251,7 +251,7 @@ def run_job(job):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run_dir", type=Path, nargs="?", default=rev4.RUN_ROOT, help="default: artifacts/run_1")
-    ap.add_argument("--preset", choices=["epsilon", "gate2", "gate3", "final"],
+    ap.add_argument("--preset", choices=["epsilon", "gate2", "gate3", "reg", "gate5", "ablation", "final"],
                     help="take groups, seeds, episodes, epsilons and certification from rev4.py / rev4_params.json")
     ap.add_argument("--cache-dir", type=Path, default=None, help="default: artifacts/eval_cache/<run name>/<preset or manual>")
     ap.add_argument("--episodes", type=int, default=None, help="default: the preset's value (manual mode: 100)")

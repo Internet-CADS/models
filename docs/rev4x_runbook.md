@@ -2,7 +2,12 @@
 
 You are an agent on the user's Windows training desktop (6 cores / 12 threads). This file is your complete task
 description: you need no other instructions. Read it fully, then work through the steps in order, starting at Step 0.
-The whole thing takes about 25 hours of machine time (about 5 more for each retry).
+The whole thing takes about 45 hours of machine time (about 7 more for each retry).
+
+**Changed on 2026-11-14 (after gate 2): steps 5 to 10 are new.** If you started before that, read this file again
+from step 5. Reason: SA-DQN passed gate 2 but crashed under attack almost as often as vanilla, because its regulariser
+was too weak (`docs/rev4x_regulariser_plan.md`). Gate 3 is now informational, the old stage 4 is replaced by a stage
+that tries a stronger regulariser, and two more stages follow. `python gate.py ...` still tells you the next command.
 
 **What the user has authorised** (you do not need to ask for these): pulling and pushing branch `rev4x` with normal
 pushes, the progress commits and pushes made by `monitoring.py --push`, the commits listed in this runbook, and
@@ -10,7 +15,7 @@ changing the CPU affinity of the `train.py` processes (step 1c). Anything else t
 training runs or the machine needs the user's go-ahead.
 
 **When to contact the user:** only when this runbook says **"stop and ask"** (a gate that says STOP, a failed or stalled
-run, a check that fails, anything you do not understand), and at the end (Step 8). Always do it with the procedure in
+run, a check that fails, anything you do not understand), and at the end (Step 10). Always do it with the procedure in
 "Stopping to ask the user" below: the user watches GitHub, not your chat. Everything else you do on your own and record
 in `RUNLOG.md`.
 
@@ -24,7 +29,7 @@ running. Continue at the first step that is not finished. Never start a step twi
   Step 0 checks the branch out, after which you work only in the local clone.
 - Project: robust DQN on highway-env; vanilla DQN vs SA-DQN vs WocaR-DQN. Rev 4 lives in `entries/06_wocar_dqn_r4/`.
   `entries/06_wocar_dqn_r4/README.md` explains what rev 4 changes and why; you do not need it to do the task.
-- Rev 4 is trained in **four stages of six runs each** (one run per core, 1,000,000 frames, about 5 hours per stage).
+- Rev 4 is trained in **six stages of six runs each** (one run per core, 1,000,000 frames, about 5–7 hours per stage).
   After each stage a script called a **gate** decides whether to go on. You run the gate and do what it prints.
   You never decide a gate yourself and you never change a threshold.
 - In the commands below `python` means the repo venv's interpreter (`.venv\Scripts\python.exe` on Windows,
@@ -36,7 +41,7 @@ running. Continue at the first step that is not finished. Never start a step twi
 - Never edit `train.py`, `gate.py`, `rev4.py`, the configs, `upstream/` or `rev4_params.json`. If a script refuses to
   run with `NOT ALLOWED`, a previous step is missing: go back to the runbook, do not work around it.
 - A gate prints one of three verdicts. **PASS**: go to the step it names. **RETRY**: repeat the step it names, once.
-  **FAIL**: do what the `Next:` line says (a line starting with STOP means: stop and ask). Do not train anything after a FAIL
+  **NOTED** (gate 3 only): continue exactly as after a PASS. **FAIL**: do what the `Next:` line says (a line starting with STOP means: stop and ask). Do not train anything after a FAIL
   unless the `Next:` line tells you to.
 - Do not kill or restart training runs on your own, except changing their CPU affinity as described in step 1c.
   If a run fails or something looks wrong, stop and ask (see "Stopping to ask the user").
@@ -184,38 +189,76 @@ python gate.py stage2
 - **FAIL:** stop and ask (as in step 2).
 - Commit as after gate 1 (message `gate 2`).
 
-## Step 5 — stage 3: more SA-DQN seeds + WocaR-DQN (about 5 hours, then about 1 hour of evaluation)
+## Step 5 — stage 3: more SA-DQN seeds + WocaR-DQN, first setting (about 6 hours, then about 1 hour of evaluation)
 ```
 python run_orchestrator.py --stage 3          # terminal 1
 python monitoring.py --stage 3 --push         # terminal 2
 ```
-Affinity (1c), wait, finish, commit (message `stage 3 training`). Then:
+Affinity (1c), wait, finish, commit (message `stage 3 training`). Before the evaluation, make sure you have the newest
+code: `git -C ../.. pull --rebase --autostash origin rev4x`. Then:
 ```
 python evaluate.py --preset gate3 --workers 6
 python gate.py stage3
 ```
-- **PASS:** go to step 6.
-- **RETRY:** the gate has lowered `worst_ratio` and created `wocar_dqn_b`. Repeat this whole step 5 once (only
-  `wocar_dqn_b` seeds 1–3 are trained).
-- **FAIL:** **skip step 6** and go to step 7. (The final evaluation then covers vanilla, SA-DQN and the three WocaR
-  seeds that exist.)
+- This gate is **informational**: it prints **PASS** or **NOTED**, and in both cases you go to step 6. It never asks
+  for a retry. (If it prints `RETRY` or names `wocar_dqn_b`, you are running old code: pull as above and run
+  `python gate.py stage3 --force`.)
 - Commit as after gate 1 (message `gate 3`).
 
-## Step 6 — stage 4: remaining seeds + exploratory arm (about 5 hours)
+## Step 6 — stage 4: SA-DQN with a stronger regulariser (about 6 hours, then about 40 minutes of evaluation)
 ```
 python run_orchestrator.py --stage 4          # terminal 1
 python monitoring.py --stage 4 --push         # terminal 2
 ```
-This trains WocaR seeds 4–6 and `wocar_wcl_dqn` seeds 1–3. Affinity (1c), wait, finish, commit
-(message `stage 4 training`). There is no gate after this stage.
+This trains three SA-DQN arms × seeds 1 and 2: `sa_dqn_c030` (hinge_c 0.3), `sa_dqn_k010` (κ 0.1) and
+`sa_dqn_c030_k010` (both). Check with `--dry-run` first if you want: it must list exactly these six runs. Affinity
+(1c), wait, finish, commit (message `stage 4 training`). Then:
+```
+python evaluate.py --preset reg --workers 6
+python gate.py reg
+```
+- **PASS:** the gate has picked one arm. That arm is now the SA-DQN of the comparison, and WocaR-DQN will be trained
+  with the same regulariser. Go to step 7. (A line starting with `Note:` in the output is not a problem; repeat it in
+  the final message.)
+- **FAIL:** stop and ask (as in step 2).
+- Commit as after gate 1 (message `gate reg`).
 
-## Step 7 — final evaluation and report (about 4–5 hours)
+## Step 7 — stage 5: more seeds of the chosen SA-DQN + WocaR-DQN (about 7 hours, then about 1 hour of evaluation)
+```
+python run_orchestrator.py --stage 5          # terminal 1
+python monitoring.py --stage 5 --push         # terminal 2
+```
+This trains the chosen SA-DQN arm seeds 3–5 and `wocar_dqn_reg` seeds 1–3. Affinity (1c), wait, finish, commit
+(message `stage 5 training`). Then:
+```
+python evaluate.py --preset gate5 --workers 6
+python gate.py stage5
+```
+- **PASS:** go to step 8.
+- **RETRY:** the gate has lowered `worst_ratio` and created `wocar_dqn_reg_b`. Repeat this whole step 7 once (only
+  `wocar_dqn_reg_b` seeds 1–3 are trained; the SA-DQN runs are skipped).
+- **FAIL:** stop and ask (as in step 2).
+- Commit as after gate 1 (message `gate 5`).
+
+## Step 8 — stage 6: remaining seeds + exploratory arm (about 7 hours)
+```
+python run_orchestrator.py --stage 6          # terminal 1
+python monitoring.py --stage 6 --push         # terminal 2
+```
+This trains the chosen SA-DQN arm seed 6, WocaR seeds 4–6 and `wocar_wcl_dqn` seeds 1–2. Affinity (1c), wait, finish,
+commit (message `stage 6 training`). There is no gate after this stage.
+
+## Step 9 — final evaluation and report (about 5 hours)
 ```
 python evaluate.py --preset final --workers 6
+python evaluate.py --preset ablation --workers 6
 python report.py
 ```
-- The evaluation runs every group and seed at its group's peak checkpoint, 300 episodes, four attacks, seven ε values (0 and 0.25–2 × the training ε),
-  plus certification. It caches every finished job, so if it is interrupted, run the same command again.
+- The final evaluation runs vanilla, the chosen SA-DQN, WocaR-DQN and the exploratory arm: every seed at its group's
+  peak checkpoint, 300 episodes, four attacks, seven ε values (0 and 0.25–2 × the training ε), plus certification.
+  It caches every finished job, so if it is interrupted, run the same command again.
+- The ablation evaluation covers the groups outside the comparison (first setting, arms that were not chosen) with
+  100 episodes. Most or all of it is already cached from the gates, so it usually prints `0 jobs to run`.
 - `report.py` writes `artifacts/run_1/report.html` and prints one line per group.
 - Commit:
 ```
@@ -230,15 +273,16 @@ git -C ../.. commit -m "FINISHED: rev 4 is complete"
 git -C ../.. push origin rev4x
 ```
 
-## Step 8 — final message to the user
+## Step 10 — final message to the user
 Send:
-1. Which steps ran and every gate verdict (copy the verdict lines from `RUNLOG.md`), including retries.
+1. Which steps ran and every gate verdict (copy the verdict lines from `RUNLOG.md`), including retries and notes.
 2. The contents of `rev4_params.json`.
 3. The headline table from the report at the training ε and at 2× (per group: seeds, crash without attack, crash under
    gradient attacks, attack-induced crash, certified actions), and the per-seed values for crash without attack and
    attack-induced crash (seeds differ a lot in this kind of training).
-4. Anything unusual: failed or restarted runs, runs slower than expected, a run whose mini-test return collapsed late.
-5. What is committed locally (`git log --oneline origin/rev4x..HEAD`) and whether it is pushed.
+4. The "Regulariser ablation" table from the report.
+5. Anything unusual: failed or restarted runs, runs slower than expected, a run whose mini-test return collapsed late.
+6. What is committed locally (`git log --oneline origin/rev4x..HEAD`) and whether it is pushed.
 
 ## If something goes wrong
 | Situation | What to do |
@@ -259,8 +303,10 @@ Send:
 | 1 stage 1 | ~5 h |
 | 2 gate 1 | 5 min |
 | 3 ε sweep + gate | ~30 min |
-| 4 stage 2 + evaluation + gate | ~5 h + 40 min |
-| 5 stage 3 + evaluation + gate | ~5 h + 40 min |
-| 6 stage 4 | ~5 h |
-| 7 final evaluation + report | ~3 h |
-| Each retry (steps 4 or 5) | + ~5 h 40 min |
+| 4 stage 2 + evaluation + gate | ~5 h + 1 h |
+| 5 stage 3 + evaluation + gate | ~6 h + 1 h |
+| 6 stage 4 + evaluation + gate | ~6 h + 40 min |
+| 7 stage 5 + evaluation + gate | ~7 h + 1 h |
+| 8 stage 6 | ~7 h |
+| 9 final evaluation + report | ~5 h |
+| Each retry (steps 4 or 7) | + ~6–8 h |

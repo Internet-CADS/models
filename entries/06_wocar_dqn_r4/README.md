@@ -24,7 +24,8 @@ Code is a copy of `05_wocar_dqn_r3`. Environment and reward are unchanged (15 ve
 | The time limit is no longer stored as an ending; only a crash or leaving the road is | `highway_adapter.py` (`info["terminated"]`), `train.py` (`bootstrap_on_timeout`) | on |
 | Squared-error loss instead of Huber, also for the worst-case critic and the bound-based worst-case loss | `natural_loss_fn: "mse"` | on |
 | Discount factor chosen between 0.97 and 0.9 (laptop pilot ruled out 0.99) | stage 1 arms in `rev4.py` | gate 1 decides |
-| `hinge_c` set from vanilla's measured action gaps | `gate.py stage1` | gate 1 decides |
+| `hinge_c` set from vanilla's measured action gaps | `gate.py stage1` | gate 1 decides (first setting; turned out too weak, see below) |
+| Regulariser strength (`hinge_c`, κ) chosen by the certified share | stage 4 arms in `rev4.py`, `gate.py reg` | gate decides |
 | Training and attack ε set where vanilla clearly breaks | `gate.py epsilon` | gate decides (≤ 0.05) |
 | WocaR: the mixed natural / worst-case value is bootstrapped (paper, Algorithm 2 line 17), not only used to pick the action | `train.py` (`worst_target_mode: "value"`) | on, ratio 0.5 |
 | WocaR: worst-case critic radius = training ε (paper) | `worst_eps_end` | on |
@@ -40,14 +41,16 @@ Everything in `train.py` is switched by config; with the rev 3 configs it behave
 cheaper (the lost future is 0.45/(1−γ): about 45 at γ 0.99, 4.5 at γ 0.9), so it may make the policy more reckless.
 That is why γ is a pilot arm and not a fixed choice.
 
-## Stages and gates (every stage is 6 runs, one per core, about 5 h)
+## Stages and gates (every stage is 6 runs, one per core, about 5–7 h)
 | Step | Trains | Gate (`gate.py`) | Rule |
 |---|---|---|---|
 | Stage 1 | vanilla × γ 0.97 / 0.9 × seeds 1–3 | `stage1` | mean of the last 3 mini-tests: crash ≤ 15%, return ≥ 18; mean Q within 0.6–1.5 × the discounted return that followed (guards against diverging values). Lowest crash rate among passing arms wins. Sets γ and `hinge_c` (median action gap, clipped to 0.02–0.5). |
 | ε sweep | — (attacks on the chosen arm, ε 0.005, 0.0075, 0.01, 0.015, 0.02, 0.05, 0.1) | `epsilon` | smallest ε ≤ 0.05 at which gradient attacks add ≥ 20 points to vanilla's crash rate |
 | Stage 2 | vanilla seeds 4–6, SA-DQN seeds 1–3 | `stage2` | SA-DQN: clean crash ≤ vanilla + 8 points, clean return ≥ 85% of vanilla, certified actions ≥ 50%, PGD flip rate ≤ half of vanilla's. One retry: κ ×5 if too weak, κ ÷4 if too strong. |
-| Stage 3 | SA-DQN seeds 4–6, WocaR seeds 1–3 | `stage3` | WocaR: same driving and certification checks, worst-case critic bounded. One retry with `worst_ratio` 0.2. If it still fails, the final evaluation runs without stage 4. |
-| Stage 4 | WocaR seeds 4–6, `wocar_wcl_dqn` seeds 1–3 | — | — |
+| Stage 3 | SA-DQN seeds 4–6, WocaR seeds 1–3 (both with the first regulariser setting) | `stage3` | Informational (PASS or NOTED): the same checks as gate 5, but the run continues either way. |
+| Stage 4 | SA-DQN × three regulariser arms × seeds 1–2: `hinge_c` 0.3; κ 0.1; both | `reg` | Among the arms with clean crash ≤ vanilla + 8 points and clean return ≥ 85% of vanilla, the highest certified share wins (within 2 points: the lower clean crash rate). It must certify at least 5 points more than the first setting. Target 90%. Crash rates under attack are not part of the rule. |
+| Stage 5 | chosen SA-DQN seeds 3–5, WocaR (same regulariser) seeds 1–3 | `stage5` | WocaR: clean crash and return as above, certified ≥ the chosen SA-DQN's share − 10 points (at least 50%), worst-case critic bounded. One retry with `worst_ratio` 0.2. |
+| Stage 6 | chosen SA-DQN seed 6, WocaR seeds 4–6, `wocar_wcl_dqn` seeds 1–2 | — | — |
 | Final | — (300 episodes, all groups and seeds) | — | `report.py` |
 
 Why these numbers:
@@ -59,7 +62,7 @@ Why these numbers:
   WocaR's worst-case critic would inherit. It does not test the crash signal (see the pilot section).
 - **ε where vanilla breaks.** With a better learner vanilla may shrug off ε 0.005 (about 1 m). The comparison needs an
   attack that hurts vanilla; 0.05 (10 m, 0.8 m sideways, 4 m/s) is the largest budget accepted.
-- **Gates 2 and 3 check health, not the result.** Three seeds are too few to gate on crash rates under attack, and
+- **Gates 2, 3 and 5 check health, not the result.** Three seeds are too few to gate on crash rates under attack, and
   whether WocaR beats SA-DQN is the question of the experiment.
 
 The gates write `rev4_params.json`; the orchestrator, evaluation and report read it. A stage cannot start before its
@@ -94,7 +97,7 @@ function shows just before it.
 | `run_orchestrator.py` | launches the runs of a stage (`--stage N`, `--dry-run`, `--smoke`) |
 | `monitoring.py` | live view; writes `PROGRESS.md` and `progress.json` |
 | `diagnose.py` | Q-values against realised returns, action gaps (gate 1 reads it) |
-| `evaluate.py` | attacks and certification (`--preset epsilon / gate2 / gate3 / final`) |
+| `evaluate.py` | attacks and certification (`--preset epsilon / gate2 / gate3 / reg / gate5 / ablation / final`) |
 | `gate.py` | the go/no-go checks; appends its tables to `RUNLOG.md` |
 | `report.py` | HTML report (`artifacts/run_1/report.html`) |
 | `config_highway_{vanilla,sadqn,wocar,wocar_wcl}.json` | fixed settings; gate-decided values are passed as overrides |
@@ -104,3 +107,14 @@ function shows just before it.
 - The gate thresholds are choices, not measurements. If gate 1 fails narrowly, that is a decision for the project, not
   for the training agent.
 - `wocar_wcl_dqn` has only three seeds: a first look, not a result.
+
+## Why stages 4–6 were added (2026-11-14)
+Gate 2 passed, but SA-DQN with the first setting (`hinge_c` 0.031 from vanilla's action gaps, κ 0.02) was barely more
+robust than vanilla where it counts: attack-induced crashes +32.1 against +34.8 points at ε 0.005, with 9.9% against
+55.8% of actions flipped and 66% of actions certified. About five forced actions per episode remain, and one forced
+lane change is enough for a crash. Setting `hinge_c` from vanilla's action gaps was a reasoning error: those gaps say
+how close vanilla's preferences are, not how large a margin has to be. Stage 4 therefore tries a larger `hinge_c`
+(the margin up to which a state keeps being pushed), a larger κ (the weight of the regulariser, which is what acts on
+the states that are still uncertified) and both; `gate.py reg` picks by certified share, not by crash rates, so the
+choice is not tuned towards the hoped-for result. The groups of the first setting (`sa_dqn`, `wocar_dqn`) stay in the
+report as an ablation. Details: `docs/rev4x_regulariser_plan.md`.

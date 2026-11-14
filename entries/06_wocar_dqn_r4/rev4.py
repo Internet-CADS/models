@@ -5,10 +5,16 @@ Rev 4 runs in stages with a gate after each one (see ../../docs/rev4x_runbook.md
     stage 1  vanilla DQN, two discount factors (arms) x seeds 1-3     -> gate.py stage1  (picks the arm, sets gamma + hinge_c)
              attack sweep on the chosen vanilla arm                    -> gate.py epsilon (sets the training/attack epsilon)
     stage 2  vanilla seeds 4-6 + SA-DQN seeds 1-3                      -> gate.py stage2
-    stage 3  SA-DQN seeds 4-6 + WocaR-DQN seeds 1-3                    -> gate.py stage3
-    stage 4  WocaR-DQN seeds 4-6 + exploratory arm (WocaR with the worst-case loss, seeds 1-3)
-    final    evaluate.py --preset final, report.py
+    stage 3  SA-DQN seeds 4-6 + WocaR-DQN seeds 1-3                    -> gate.py stage3  (informational)
+    stage 4  SA-DQN with a stronger regulariser: three arms x seeds 1-2 -> gate.py reg     (picks hinge_c and kappa)
+    stage 5  chosen SA-DQN seeds 3-5 + WocaR-DQN (same regulariser) seeds 1-3  -> gate.py stage5
+    stage 6  chosen SA-DQN seed 6 + WocaR-DQN seeds 4-6 + exploratory arm (WocaR with the worst-case loss, seeds 1-2)
+    final    evaluate.py --preset final, evaluate.py --preset ablation, report.py
 Every stage is six runs, one per core.
+
+Stages 4-6 were added after gate 2 (docs/rev4x_regulariser_plan.md): with hinge_c set to vanilla's action gap, SA-DQN
+certified only 66% of states and crashed under attack almost as often as vanilla. The groups trained before that
+(sa_dqn, wocar_dqn) are kept as the "first setting" in the regulariser ablation.
 
 gate.py writes its decisions to rev4_params.json; run_orchestrator.py, evaluate.py, diagnose.py and report.py read them,
 so nobody types hyperparameters by hand and a stage cannot start before its gate has passed.
@@ -32,14 +38,28 @@ ARM_SEEDS = FIRST_SEEDS             # stage 1: seeds per vanilla arm
 # ruled out 0.99 (17-21% crashes, slow learning); 0.97 and 0.9 both reached 10-14%.
 ARMS = {"vanilla_g097": 0.97, "vanilla_g090": 0.9}
 
+# Stage 4 arms: SA-DQN with a stronger regulariser (folder -> what differs from the first setting, i.e. from the
+# hinge_c gate 1 chose and kappa 0.02). kappa weighs the regulariser against the TD loss; hinge_c is the certified
+# margin up to which a state keeps being pushed. Two seeds per arm: gate.py reg selects on the certified share, which
+# varies little between seeds.
+REG_ARMS = {"sa_dqn_c030": {"hinge_c": 0.3}, "sa_dqn_k010": {"kappa": 0.1}, "sa_dqn_c030_k010": {"hinge_c": 0.3, "kappa": 0.1}}
+REG_SEEDS = [1, 2]
+# Groups trained with the regulariser gate.py reg chose (same hinge_c and kappa as the chosen SA-DQN arm).
+REG_FOLLOWERS = ("wocar_dqn_reg", "wocar_dqn_reg_b", "wocar_wcl_dqn")
+
 # folder under the run root -> (config file, label, role)
 GROUPS = {
     "vanilla_g097": ("config_highway_vanilla.json", "Vanilla DQN (gamma 0.97)", "vanilla"),
     "vanilla_g090": ("config_highway_vanilla.json", "Vanilla DQN (gamma 0.9)", "vanilla"),
-    "sa_dqn": ("config_highway_sadqn.json", "SA-DQN", "sa"),
+    "sa_dqn": ("config_highway_sadqn.json", "SA-DQN, first setting", "sa"),
     "sa_dqn_b": ("config_highway_sadqn.json", "SA-DQN (retry)", "sa"),
-    "wocar_dqn": ("config_highway_wocar.json", "WocaR-DQN", "wocar"),
+    "sa_dqn_c030": ("config_highway_sadqn.json", "SA-DQN, hinge_c 0.3", "sa"),
+    "sa_dqn_k010": ("config_highway_sadqn.json", "SA-DQN, kappa 0.1", "sa"),
+    "sa_dqn_c030_k010": ("config_highway_sadqn.json", "SA-DQN, hinge_c 0.3 + kappa 0.1", "sa"),
+    "wocar_dqn": ("config_highway_wocar.json", "WocaR-DQN, first setting", "wocar"),
     "wocar_dqn_b": ("config_highway_wocar.json", "WocaR-DQN (retry)", "wocar"),
+    "wocar_dqn_reg": ("config_highway_wocar.json", "WocaR-DQN", "wocar"),
+    "wocar_dqn_reg_b": ("config_highway_wocar.json", "WocaR-DQN (worst_ratio 0.2)", "wocar"),
     "wocar_wcl_dqn": ("config_highway_wocar_wcl.json", "WocaR-DQN + worst-case loss", "wocar_wcl"),
 }
 
@@ -109,6 +129,21 @@ def need(params, key, value, what):
                          f"Follow docs/rev4x_runbook.md in order; do not edit rev4_params.json by hand.")
 
 
+def decided(params, key, what):
+    if params.get(key) is None and not params.get("smoke"):
+        raise SystemExit(f"NOT ALLOWED: {what} (rev4_params.json has no {key}). "
+                         f"Follow docs/rev4x_runbook.md in order; do not edit rev4_params.json by hand.")
+
+
+def regulariser(group, params):
+    """(hinge_c, kappa) a robust group is trained with."""
+    if group in REG_FOLLOWERS:
+        need(params, "gate_reg", "PASS", f"training {group} before gate.py reg has passed")
+        return params.get("reg_hinge_c", params["hinge_c"]), params.get("reg_kappa", params["kappa"])
+    arm = REG_ARMS.get(group, {})
+    return arm.get("hinge_c", params["hinge_c"]), arm.get("kappa", params["kappa"])
+
+
 def overrides(group, params):
     """train.py command-line overrides for a group (the configs hold the rest)."""
     role = role_of(group)
@@ -116,8 +151,9 @@ def overrides(group, params):
         return [f"training_config:gamma={ARMS[group]}"]
     need(params, "gate1", "PASS", "robust training before gate.py stage1 has passed")
     need(params, "gate_eps", "PASS", "robust training before gate.py epsilon has passed")
+    hinge_c, kappa = regulariser(group, params)
     out = [f"training_config:gamma={params['gamma']}", f"training_config:epsilon={params['epsilon']}",
-           f"training_config:hinge_c={params['hinge_c']}", f"training_config:kappa={params['kappa']}"]
+           f"training_config:hinge_c={hinge_c}", f"training_config:kappa={kappa}"]
     if role in ("wocar", "wocar_wcl"):
         out += [f"training_config:worst_eps_end={params['epsilon']}", f"training_config:worst_ratio={params['worst_ratio']}"]
     return out
@@ -139,9 +175,17 @@ def stage_runs(stage, params):
         if params.get("gate3") not in (None, "RETRY") and not params.get("smoke"):
             raise SystemExit(f"NOT ALLOWED: stage 3 is already decided (gate3={params.get('gate3')}).")
         return [(sa, s) for s in LATER_SEEDS] + [(woc, s) for s in FIRST_SEEDS]
-    need(params, "gate3", "PASS", f"stage {stage} before gate.py stage3 has passed")
+    decided(params, "gate3", f"stage {stage} before gate.py stage3 has run")
     if stage == 4:
-        return [(woc, s) for s in LATER_SEEDS] + [("wocar_wcl_dqn", s) for s in FIRST_SEEDS]
+        return [(g, s) for g in REG_ARMS for s in REG_SEEDS]
+    need(params, "gate_reg", "PASS", f"stage {stage} before gate.py reg has passed")
+    if stage == 5:
+        if params.get("gate5") not in (None, "RETRY") and not params.get("smoke"):
+            raise SystemExit(f"NOT ALLOWED: stage 5 is already decided (gate5={params.get('gate5')}).")
+        return [(sa, s) for s in (3, 4, 5)] + [(woc, s) for s in FIRST_SEEDS]
+    need(params, "gate5", "PASS", f"stage {stage} before gate.py stage5 has passed")
+    if stage == 6:
+        return [(sa, 6)] + [(woc, s) for s in LATER_SEEDS] + [("wocar_wcl_dqn", s) for s in REG_SEEDS]
     raise SystemExit(f"unknown stage {stage}")
 
 
@@ -149,6 +193,13 @@ def comparison_groups(params, run_root=RUN_ROOT):
     """Groups of the vanilla / SA-DQN / WocaR comparison that exist on disk, in display order."""
     names = [params.get("vanilla_group"), params.get("sa_group"), params.get("wocar_group"), "wocar_wcl_dqn"]
     return [g for g in names if g and (Path(run_root) / g).is_dir()]
+
+
+def ablation_groups(params, run_root=RUN_ROOT):
+    """Robust groups on disk that are not in the comparison: the first setting and the stage 4 arms that were not chosen."""
+    main = comparison_groups(params, run_root)
+    names = [params.get("weak_sa_group", "sa_dqn"), *REG_ARMS, params.get("weak_wocar_group", "wocar_dqn")]
+    return [g for g in dict.fromkeys(names) if g not in main and (Path(run_root) / g).is_dir()]
 
 
 def eval_epsilons(params):
@@ -167,6 +218,16 @@ def preset(name, params, run_root=RUN_ROOT):
         return dict(groups=[params["vanilla_group"], params["sa_group"]], seeds=None, episodes=100, epsilons=eps, certify=True, cache="gate")
     if name == "gate3":
         return dict(groups=[params["vanilla_group"], params["sa_group"], params["wocar_group"]], seeds=None, episodes=100, epsilons=eps, certify=True, cache="gate")
+    if name == "reg":
+        decided(params, "gate3", "evaluation preset reg before gate.py stage3 has run")
+        return dict(groups=[params["vanilla_group"], params["sa_group"], *REG_ARMS], seeds=None, episodes=100, epsilons=eps, certify=True, cache="gate")
+    need(params, "gate_reg", "PASS", f"evaluation preset {name} before gate.py reg has passed (the runbook changed on "
+                                      f"2026-11-14: re-read docs/rev4x_runbook.md from step 6)")
+    if name == "gate5":
+        return dict(groups=[params["vanilla_group"], params["sa_group"], params["wocar_group"]], seeds=None, episodes=100, epsilons=eps, certify=True, cache="gate")
+    if name == "ablation":
+        return dict(groups=ablation_groups(params, run_root), seeds=None, episodes=100, epsilons=eps, certify=True, cache="gate")
     if name == "final":
+        need(params, "gate5", "PASS", "the final evaluation before gate.py stage5 has passed")
         return dict(groups=comparison_groups(params, run_root), seeds=None, episodes=300, epsilons=eps, certify=True, cache="final")
     raise SystemExit(f"unknown preset {name}")
