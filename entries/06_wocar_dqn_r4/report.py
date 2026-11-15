@@ -160,7 +160,7 @@ def welch_t(a, b):
     return (ma - mb) / se if se > 0 else None
 
 
-def headline_section(ev, kind):
+def headline_section(ev, kind, note=""):
     """Rev 4 headline: crashes without attack, total crashes under attack, and the part the attack causes."""
     present = [(g, label) for g, label in GROUPS if (g, kind) in ev]
     if not present:
@@ -170,6 +170,8 @@ def headline_section(ev, kind):
            '&ldquo;Gradient attacks&rdquo; = mean of PGD, MinBest and worst-Q. '
            '<b>Attack-induced</b> = crash rate under gradient attacks minus the same seed&rsquo;s crash rate without attack. '
            f't = Welch t-statistic against {html.escape(present[0][1])} (positive = fewer crashes than it).</p>']
+    if note:
+        sec.append(f'<p class="warn">{html.escape(note)}</p>')
     cols = [("clean_crash", "crash, no attack", True), ("clean_return", "return, no attack", False),
             ("attack_crash", "crash, gradient attacks", True), ("increase", "attack-induced crash", True),
             ("noise_increase", "random-noise-induced crash", True), ("flip", "actions flipped (PGD)", True),
@@ -498,7 +500,10 @@ def main():
 
     eval_dir = args.eval_dir or Path(__file__).resolve().parent / "artifacts" / "eval_cache" / run_dir.resolve().name / cache
     ev = load_eval(eval_dir) if eval_dir.is_dir() else {}
-    robust = headline_section(ev, "peak") + robustness_section(ev, "peak")   # only the peak-of-mean checkpoints are reported
+    override = ("WocaR-DQN failed gate 5 twice on clean driving (crash without attack more than vanilla + 8 points); "
+                "it is included by the user's decision (gate5_override in rev4_params.json, see RUNLOG.md)."
+                if params.get("gate5_override") else "")
+    robust = headline_section(ev, "peak", override) + robustness_section(ev, "peak")   # only the peak-of-mean checkpoints are reported
     if robust and cache == "final" and (eval_dir.parent / "gate").is_dir():
         robust += ablation_section(ev, load_eval(eval_dir.parent / "gate"), "peak", params, run_dir)
     if not robust:

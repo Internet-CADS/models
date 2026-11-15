@@ -152,6 +152,24 @@ def decided(params, key, what):
                          f"Follow docs/rev4x_runbook.md in order; do not edit rev4_params.json by hand.")
 
 
+def gate5_open(params, what):
+    """Stage 6 and the final evaluation need gate 5 PASS, or the user's override after a FAIL (see override_gate5)."""
+    if params.get("gate5") == "FAIL" and params.get("gate5_override"):
+        return
+    need(params, "gate5", "PASS", what)
+
+
+def override_gate5(note):
+    """The user's decision (2026-11-15, docs/fix3.md): continue after gate 5 FAIL with the failed WocaR group.
+    gate5 stays FAIL in rev4_params.json; gate5_override records the decision."""
+    params = load_params()
+    if params.get("gate5") != "FAIL":
+        raise SystemExit(f"NOT ALLOWED: the override is only for gate5=FAIL (rev4_params.json has {params.get('gate5')!r}).")
+    params["gate5_override"] = note
+    save_params(params)
+    resumed(f"User override of gate 5 FAIL: {note}")
+
+
 def regulariser(group, params):
     """(hinge_c, kappa) a robust group is trained with."""
     if group in REG_FOLLOWERS:
@@ -202,7 +220,7 @@ def stage_runs(stage, params):
         if params.get("gate5") not in (None, "RETRY") and not params.get("smoke"):
             raise SystemExit(f"NOT ALLOWED: stage 5 is already decided (gate5={params.get('gate5')}).")
         return [(sa, s) for s in (3, 4, 5)] + [(woc, s) for s in FIRST_SEEDS]
-    need(params, "gate5", "PASS", f"stage {stage} before gate.py stage5 has passed")
+    gate5_open(params, f"stage {stage} before gate.py stage5 has passed")
     if stage == 6:
         return [(sa, 6)] + [(woc, s) for s in LATER_SEEDS] + [(EXPLORATORY_GROUP, s) for s in REG_SEEDS]
     raise SystemExit(f"unknown stage {stage}")
@@ -247,6 +265,6 @@ def preset(name, params, run_root=RUN_ROOT):
     if name == "ablation":
         return dict(groups=ablation_groups(params, run_root), seeds=None, episodes=100, epsilons=eps, certify=True, cache="gate")
     if name == "final":
-        need(params, "gate5", "PASS", "the final evaluation before gate.py stage5 has passed")
+        gate5_open(params, "the final evaluation before gate.py stage5 has passed")
         return dict(groups=comparison_groups(params, run_root), seeds=None, episodes=300, epsilons=eps, certify=True, cache="final")
     raise SystemExit(f"unknown preset {name}")
