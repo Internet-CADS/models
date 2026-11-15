@@ -4,7 +4,7 @@
   "gate1": "PASS",
   "gate2": "PASS",
   "gate3": "NOTED",
-  "gate5": "RETRY",
+  "gate5": "FAIL",
   "gate_eps": "PASS",
   "gate_reg": "PASS",
   "hinge_c": 0.031,
