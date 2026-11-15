@@ -460,7 +460,8 @@ def main():
             print(f"skip {sub}: no runs with test rows", file=sys.stderr)
             continue
         mean = mean_curve(runs)
-        peak = max(mean, key=lambda p: p[1])  # first max on ties
+        eligible = [p for p in mean if p[0] >= rev4.schedule_end(sub)] or mean  # same rule as evaluate.py
+        peak = max(eligible, key=lambda p: p[1])  # first max on ties
         total = TOTAL_FRAMES
         groups.append(dict(sub=sub, label=label, runs=runs, mean=mean, peak=peak, total=total))
     if not groups:

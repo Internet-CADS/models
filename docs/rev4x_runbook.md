@@ -236,6 +236,16 @@ python evaluate.py --preset gate5 --workers 6
 python gate.py stage5
 ```
 - **PASS:** go to step 8.
+- **Correction of 2026-11-15, 06:00 (read this even if you have already started step 7).** The evaluation used to pick
+  WocaR checkpoints from before its training reached full strength (300,000 frames; the epsilon and worst-case ramps
+  end at 700,000). `evaluate.py` now only picks checkpoints after the ramps. Do this once:
+  1. Pull (as above).
+  2. If `python gate.py stage5` has already run: undo only its decision with
+     `git -C ../.. checkout e9f4a1e -- entries/06_wocar_dqn_r4/rev4_params.json`. If `wocar_dqn_reg_b` or stage 6
+     training has already started, stop and ask instead.
+  3. Run `python evaluate.py --preset gate5 --workers 6` again (only the WocaR checkpoints at 700,000 frames are new,
+     about 30 minutes), then `python gate.py stage5`, and continue as below.
+  4. Record this in `RUNLOG.md` ("gate 5 re-evaluated after the checkpoint correction").
 - The gate checks WocaR's flip rate and attack-induced crashes, not its certified share (changed on 2026-11-14 in the
   evening). If its table has a row `certified` with a rule like `>= 55.0%`, you are running old code: pull as above and
   run the gate again.

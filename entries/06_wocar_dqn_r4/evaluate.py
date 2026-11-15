@@ -62,8 +62,8 @@ def peak_frame(run_dir, group_dir):
     runs = report.load_group(run_dir / group_dir)
     if not runs:
         return None
-    mean = report.mean_curve(runs)
-    return max(mean, key=lambda p: p[1])[0]
+    mean = [p for p in report.mean_curve(runs) if p[0] >= rev4.schedule_end(group_dir)]
+    return max(mean, key=lambda p: p[1])[0] if mean else None
 
 
 def settings_sig(settings):

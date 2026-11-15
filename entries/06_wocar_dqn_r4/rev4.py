@@ -115,6 +115,18 @@ def config_for(group):
     return GROUPS[group][0]
 
 
+def schedule_end(group):
+    """First frame at which a robust group trains at full strength (epsilon and worst-case ramps done); earlier
+    checkpoints cannot be the evaluated peak. 0 for vanilla and unknown groups."""
+    if group not in GROUPS or role_of(group) == "vanilla":
+        return 0
+    tc = json.loads((ENTRY / config_for(group)).read_text())["training_config"]
+    end = tc["schedule_start"] + tc["schedule_length"]
+    if tc.get("worst"):
+        end = max(end, tc["schedule_start"] + tc["worst_schedule"])
+    return end
+
+
 def label_for(group):
     return GROUPS[group][1]
 

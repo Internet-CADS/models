@@ -59,6 +59,12 @@ directly.
     showed that WocaR's first setting certifies only 6% (SA-DQN 66%) with the same κ and `hinge_c`. This is by design,
     not a bug: WocaR weights the regulariser by state importance w(s) = max Q − min Q (`train.py`, lines 527–531), so
     states with near-tied actions get almost no push. The certified share is still reported.
+  - *Changed on 15 Nov, 06:00:* the evaluated "peak" checkpoint is now chosen only among frames where training is
+    at full strength (SA-DQN from 500,000, WocaR from 700,000, when the epsilon and worst-case ramps end). Before, the
+    WocaR groups were evaluated at 400,000 (first setting) and 300,000 (`wocar_dqn_reg`), i.e. at 75% / 50% of the
+    training epsilon and a third or less of the worst-case mixing. The gate 3 numbers for WocaR in `RUNLOG.md` are
+    therefore from an under-trained checkpoint; the ablation evaluation re-evaluates it at 750,000. SA-DQN and vanilla
+    are unaffected (their peaks were already at 650,000–1,000,000).
 - **Same settings for both:** WocaR gets the chosen `hinge_c` and κ, so the only difference to SA-DQN stays the
   worst-case value, as in the paper.
 - **First setting kept:** `sa_dqn` (6 seeds) and `wocar_dqn` (3 seeds) appear in the report's ablation table.
