@@ -50,7 +50,7 @@ That is why γ is a pilot arm and not a fixed choice.
 | Stage 3 | SA-DQN seeds 4–6, WocaR seeds 1–3 (both with the first regulariser setting) | `stage3` | Informational (PASS or NOTED): the same checks as gate 5, but the run continues either way. |
 | Stage 4 | SA-DQN × three regulariser arms × seeds 1–2: `hinge_c` 0.3; κ 0.1; both | `reg` | Among the arms with clean crash ≤ vanilla + 8 points and clean return ≥ 85% of vanilla, the highest certified share wins (within 2 points: the lower clean crash rate). It must certify at least 5 points more than the first setting. Target 90%. Crash rates under attack are not part of the rule. |
 | Stage 5 | chosen SA-DQN seeds 3–5, WocaR (same regulariser) seeds 1–3 | `stage5` | WocaR: clean crash and return as above, PGD flip rate ≤ 0.5 × vanilla, attack-induced crashes ≤ vanilla, worst-case critic bounded. The certified share is reported but not gated: WocaR's state-importance weighting leaves near-tied states uncertified by design (first setting: 6%). One retry with `worst_ratio` 0.2. |
-| Stage 6 | chosen SA-DQN seed 6, WocaR seeds 4–6, `wocar_wcl_dqn` seeds 1–2 | — | — |
+| Stage 6 | chosen SA-DQN seed 6, WocaR seeds 4–6, `wocar_sel_dqn` seeds 1–2 (WocaR with the upstream target: the mix only picks the next action; since 2026-11-15, replacing `wocar_wcl_dqn`) | — | — |
 | Final | — (300 episodes, all groups and seeds) | — | `report.py` |
 
 Why these numbers:
@@ -106,7 +106,7 @@ function shows just before it.
 ## Open points
 - The gate thresholds are choices, not measurements. If gate 1 fails narrowly, that is a decision for the project, not
   for the training agent.
-- `wocar_wcl_dqn` has only three seeds: a first look, not a result.
+- `wocar_sel_dqn` has only two seeds: a check of our target formula, not a result.
 
 ## Why stages 4–6 were added (2026-11-14)
 Gate 2 passed, but SA-DQN with the first setting (`hinge_c` 0.031 from vanilla's action gaps, κ 0.02) was barely more

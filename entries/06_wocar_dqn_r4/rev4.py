@@ -8,7 +8,7 @@ Rev 4 runs in stages with a gate after each one (see ../../docs/rev4x_runbook.md
     stage 3  SA-DQN seeds 4-6 + WocaR-DQN seeds 1-3                    -> gate.py stage3  (informational)
     stage 4  SA-DQN with a stronger regulariser: three arms x seeds 1-2 -> gate.py reg     (picks hinge_c and kappa)
     stage 5  chosen SA-DQN seeds 3-5 + WocaR-DQN (same regulariser) seeds 1-3  -> gate.py stage5
-    stage 6  chosen SA-DQN seed 6 + WocaR-DQN seeds 4-6 + exploratory arm (WocaR with the worst-case loss, seeds 1-2)
+    stage 6  chosen SA-DQN seed 6 + WocaR-DQN seeds 4-6 + exploratory arm (WocaR with the upstream target, seeds 1-2)
     final    evaluate.py --preset final, evaluate.py --preset ablation, report.py
 Every stage is six runs, one per core.
 
@@ -45,7 +45,11 @@ ARMS = {"vanilla_g097": 0.97, "vanilla_g090": 0.9}
 REG_ARMS = {"sa_dqn_c030": {"hinge_c": 0.3}, "sa_dqn_k010": {"kappa": 0.1}, "sa_dqn_c030_k010": {"hinge_c": 0.3, "kappa": 0.1}}
 REG_SEEDS = [1, 2]
 # Groups trained with the regulariser gate.py reg chose (same hinge_c and kappa as the chosen SA-DQN arm).
-REG_FOLLOWERS = ("wocar_dqn_reg", "wocar_dqn_reg_b", "wocar_wcl_dqn")
+REG_FOLLOWERS = ("wocar_dqn_reg", "wocar_dqn_reg_b", "wocar_sel_dqn", "wocar_wcl_dqn")
+# Stage 6 exploratory arm (since 2026-11-15): WocaR with the authors' code's target, where the natural / worst-case
+# mix only picks the next action and the natural Q value is bootstrapped. Tells whether our paper-style target
+# (worst_target_mode "value") is what costs WocaR its clean driving. Replaces wocar_wcl_dqn in stage 6.
+EXPLORATORY_GROUP = "wocar_sel_dqn"
 
 # folder under the run root -> (config file, label, role)
 GROUPS = {
@@ -60,6 +64,7 @@ GROUPS = {
     "wocar_dqn_b": ("config_highway_wocar.json", "WocaR-DQN (retry)", "wocar"),
     "wocar_dqn_reg": ("config_highway_wocar.json", "WocaR-DQN", "wocar"),
     "wocar_dqn_reg_b": ("config_highway_wocar.json", "WocaR-DQN (worst_ratio 0.2)", "wocar"),
+    "wocar_sel_dqn": ("config_highway_wocar.json", "WocaR-DQN, upstream target (mix picks the action only)", "wocar"),
     "wocar_wcl_dqn": ("config_highway_wocar_wcl.json", "WocaR-DQN + worst-case loss", "wocar_wcl"),
 }
 
@@ -168,6 +173,8 @@ def overrides(group, params):
            f"training_config:hinge_c={hinge_c}", f"training_config:kappa={kappa}"]
     if role in ("wocar", "wocar_wcl"):
         out += [f"training_config:worst_eps_end={params['epsilon']}", f"training_config:worst_ratio={params['worst_ratio']}"]
+    if group == "wocar_sel_dqn":
+        out.append("training_config:worst_target_mode=select")
     return out
 
 
@@ -197,13 +204,13 @@ def stage_runs(stage, params):
         return [(sa, s) for s in (3, 4, 5)] + [(woc, s) for s in FIRST_SEEDS]
     need(params, "gate5", "PASS", f"stage {stage} before gate.py stage5 has passed")
     if stage == 6:
-        return [(sa, 6)] + [(woc, s) for s in LATER_SEEDS] + [("wocar_wcl_dqn", s) for s in REG_SEEDS]
+        return [(sa, 6)] + [(woc, s) for s in LATER_SEEDS] + [(EXPLORATORY_GROUP, s) for s in REG_SEEDS]
     raise SystemExit(f"unknown stage {stage}")
 
 
 def comparison_groups(params, run_root=RUN_ROOT):
     """Groups of the vanilla / SA-DQN / WocaR comparison that exist on disk, in display order."""
-    names = [params.get("vanilla_group"), params.get("sa_group"), params.get("wocar_group"), "wocar_wcl_dqn"]
+    names = [params.get("vanilla_group"), params.get("sa_group"), params.get("wocar_group"), EXPLORATORY_GROUP]
     return [g for g in names if g and (Path(run_root) / g).is_dir()]
 
 

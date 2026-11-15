@@ -259,7 +259,10 @@ python gate.py stage5
 python run_orchestrator.py --stage 6          # terminal 1
 python monitoring.py --stage 6 --push         # terminal 2
 ```
-This trains the chosen SA-DQN arm seed 6, WocaR seeds 4–6 and `wocar_wcl_dqn` seeds 1–2. Affinity (1c), wait, finish,
+Pull first (`git -C ../.. pull --rebase --autostash origin rev4x`): the exploratory arm changed on 2026-11-15
+(`docs/fix2.md`). This trains the chosen SA-DQN arm seed 6, WocaR seeds 4–6 and `wocar_sel_dqn` seeds 1–2 (WocaR
+with the authors' code's target; the dry run shows `worst_target_mode=select` for it). If the dry run lists
+`wocar_wcl_dqn` instead, you are running old code: pull and check again. Affinity (1c), wait, finish,
 commit (message `stage 6 training`). There is no gate after this stage.
 
 ## Step 9 — final evaluation and report (about 5 hours)
@@ -268,7 +271,7 @@ python evaluate.py --preset final --workers 6
 python evaluate.py --preset ablation --workers 6
 python report.py
 ```
-- The final evaluation runs vanilla, the chosen SA-DQN, WocaR-DQN and the exploratory arm: every seed at its group's
+- The final evaluation runs vanilla, the chosen SA-DQN, WocaR-DQN and the exploratory arm (`wocar_sel_dqn`): every seed at its group's
   peak checkpoint, 300 episodes, four attacks, seven ε values (0 and 0.25–2 × the training ε), plus certification.
   It caches every finished job, so if it is interrupted, run the same command again.
 - The ablation evaluation covers the groups outside the comparison (first setting, arms that were not chosen) with
