@@ -4,6 +4,7 @@
   "gate1": "PASS",
   "gate2": "PASS",
   "gate3": "NOTED",
+  "gate5": "RETRY",
   "gate_eps": "PASS",
   "gate_reg": "PASS",
   "hinge_c": 0.031,
@@ -14,6 +15,6 @@
   "vanilla_group": "vanilla_g090",
   "weak_sa_group": "sa_dqn",
   "weak_wocar_group": "wocar_dqn",
-  "wocar_group": "wocar_dqn_reg",
-  "worst_ratio": 0.5
+  "wocar_group": "wocar_dqn_reg_b",
+  "worst_ratio": 0.2
 }
