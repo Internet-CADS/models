@@ -1,0 +1,79 @@
+{
+  "generated": "2026-11-16 05:52:35 +0100",
+  "header": "1/6 runs done \u00b7 elapsed 05:16",
+  "target_frames": 1000000,
+  "runs": [
+    {
+      "run": "sa_dqn_c030/model_6",
+      "group": "sa_dqn_c030",
+      "model_index": 6,
+      "pct": 100.0,
+      "frames": 1000000,
+      "total": 1000000,
+      "frames_per_sec": 59.78,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "done"
+    },
+    {
+      "run": "wocar_dqn_reg_b/model_4",
+      "group": "wocar_dqn_reg_b",
+      "model_index": 4,
+      "pct": 98.3,
+      "frames": 983000,
+      "total": 1000000,
+      "frames_per_sec": 59.04,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "failed"
+    },
+    {
+      "run": "wocar_dqn_reg_b/model_5",
+      "group": "wocar_dqn_reg_b",
+      "model_index": 5,
+      "pct": 97.7,
+      "frames": 977000,
+      "total": 1000000,
+      "frames_per_sec": 58.71,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "failed"
+    },
+    {
+      "run": "wocar_dqn_reg_b/model_6",
+      "group": "wocar_dqn_reg_b",
+      "model_index": 6,
+      "pct": 98.1,
+      "frames": 981000,
+      "total": 1000000,
+      "frames_per_sec": 58.96,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "failed"
+    },
+    {
+      "run": "wocar_sel_dqn/model_1",
+      "group": "wocar_sel_dqn",
+      "model_index": 1,
+      "pct": 97.7,
+      "frames": 977000,
+      "total": 1000000,
+      "frames_per_sec": 58.72,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "failed"
+    },
+    {
+      "run": "wocar_sel_dqn/model_2",
+      "group": "wocar_sel_dqn",
+      "model_index": 2,
+      "pct": 97.6,
+      "frames": 976000,
+      "total": 1000000,
+      "frames_per_sec": 58.95,
+      "eta_seconds": null,
+      "eta": null,
+      "status": "failed"
+    }
+  ]
+}
