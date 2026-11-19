@@ -441,3 +441,6 @@ Hypothesis, raised by seeds 1-2 in the final evaluation (crash without attack 16
 
 ### 2026-11-19 23:55
 Stage 7 step 0 done: branch rev4-sel, imports, dry run and smoke run ok
+
+### 2026-11-20 00:06
+Stage 7 / 1c: affinity 0x555 applied to train.py processes
