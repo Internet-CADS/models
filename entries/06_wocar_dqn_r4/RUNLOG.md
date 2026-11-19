@@ -438,3 +438,6 @@ Final report: artifacts/run_1/report.html. Summary in the chat reply.
 Stage 7 trains the exploratory arm `wocar_sel_dqn` (WocaR-DQN with the authors' code's target) seeds 3-6, same settings as seeds 1-2.
 Hypothesis, raised by seeds 1-2 in the final evaluation (crash without attack 16.8% against 24.3% for `wocar_dqn_reg_b`): the paper-style target is what costs WocaR its clean driving.
 **Rule, fixed now, before seeds 3-6 are trained** (`gate.py sel`, `SEL_T_MIN`): after `evaluate.py --preset final` (300 episodes, every seed at the peak of the six-seed mean curve), compare the crash rate without attack of `wocar_sel_dqn` seeds 3-6 with `wocar_dqn_reg_b` (6 seeds). CONFIRMED if Welch t >= 2.0 (positive = the authors' target crashes less), otherwise NOT CONFIRMED. Seeds 1-2 are reported alongside but do not count for the rule. Informational: nothing is trained after it, and the comparison groups of the paper stay as they are.
+
+### 2026-11-19 23:55
+Stage 7 step 0 done: branch rev4-sel, imports, dry run and smoke run ok
