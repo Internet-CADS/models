@@ -10,7 +10,12 @@ Rev 4 runs in stages with a gate after each one (see ../../docs/rev4x_runbook.md
     stage 5  chosen SA-DQN seeds 3-5 + WocaR-DQN (same regulariser) seeds 1-3  -> gate.py stage5
     stage 6  chosen SA-DQN seed 6 + WocaR-DQN seeds 4-6 + exploratory arm (WocaR with the upstream target, seeds 1-2)
     final    evaluate.py --preset final, evaluate.py --preset ablation, report.py
-Every stage is six runs, one per core.
+    stage 7  exploratory arm seeds 3-6 (added 2026-11-19, docs/rev4_sel_runbook.md)  -> evaluate.py --preset final, gate.py sel
+Stages 1-6 are six runs each, one per core; stage 7 is four.
+
+Stage 7 tests the hypothesis the exploratory arm raised (seeds 1-2 crashed 16.8% without attack, against 24.3% for
+WocaR with the paper's target): that the target formula is what costs WocaR its clean driving. The rule gate.py sel
+applies was fixed before seeds 3-6 were trained, and only those four seeds count for it.
 
 Stages 4-6 were added after gate 2 (docs/rev4x_regulariser_plan.md): with hinge_c set to vanilla's action gap, SA-DQN
 certified only 66% of states and crashed under attack almost as often as vanilla. The groups trained before that
@@ -50,6 +55,7 @@ REG_FOLLOWERS = ("wocar_dqn_reg", "wocar_dqn_reg_b", "wocar_sel_dqn", "wocar_wcl
 # mix only picks the next action and the natural Q value is bootstrapped. Tells whether our paper-style target
 # (worst_target_mode "value") is what costs WocaR its clean driving. Replaces wocar_wcl_dqn in stage 6.
 EXPLORATORY_GROUP = "wocar_sel_dqn"
+CONFIRM_SEEDS = [3, 4, 5, 6]        # stage 7: the exploratory arm's confirmatory seeds (seeds 1-2 raised the hypothesis)
 
 # folder under the run root -> (config file, label, role)
 GROUPS = {
@@ -102,6 +108,7 @@ def log(text):
 BLOCKED = "BLOCKED: needs the user"
 RESUMED = "RESUMED"
 FINISHED = "FINISHED: rev 4 is complete"
+FINISHED_SEL = "FINISHED: stage 7 is complete"
 
 
 def blocked(reason):
@@ -112,8 +119,8 @@ def resumed(note):
     log(f"## {RESUMED}\n{note.rstrip()}")
 
 
-def finished(note):
-    log(f"## {FINISHED}\n{note.rstrip()}")
+def finished(note, marker=FINISHED):
+    log(f"## {marker}\n{note.rstrip()}")
 
 
 def config_for(group):
@@ -223,6 +230,10 @@ def stage_runs(stage, params):
     gate5_open(params, f"stage {stage} before gate.py stage5 has passed")
     if stage == 6:
         return [(sa, 6)] + [(woc, s) for s in LATER_SEEDS] + [(EXPLORATORY_GROUP, s) for s in REG_SEEDS]
+    if stage == 7:
+        if params.get("gate_sel") is not None and not params.get("smoke"):
+            raise SystemExit(f"NOT ALLOWED: stage 7 is already decided (gate_sel={params.get('gate_sel')}).")
+        return [(EXPLORATORY_GROUP, s) for s in CONFIRM_SEEDS]
     raise SystemExit(f"unknown stage {stage}")
 
 

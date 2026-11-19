@@ -503,6 +503,9 @@ def main():
     override = ("WocaR-DQN failed gate 5 twice on clean driving (crash without attack more than vanilla + 8 points); "
                 "it is included by the user's decision (gate5_override in rev4_params.json, see RUNLOG.md)."
                 if params.get("gate5_override") else "")
+    if params.get("gate_sel"):
+        override += (f" {rev4.label_for(rev4.EXPLORATORY_GROUP)}: seeds 1-2 were exploratory (stage 6); seeds 3-6 were trained "
+                     f"afterwards to test a rule fixed in advance (gate.py sel: {params['gate_sel']}, see RUNLOG.md).")
     robust = headline_section(ev, "peak", override) + robustness_section(ev, "peak")   # only the peak-of-mean checkpoints are reported
     if robust and cache == "final" and (eval_dir.parent / "gate").is_dir():
         robust += ablation_section(ev, load_eval(eval_dir.parent / "gate"), "peak", params, run_dir)

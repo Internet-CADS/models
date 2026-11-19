@@ -7,11 +7,13 @@
     python gate.py stage3     # after stage 3 training + evaluate.py --preset gate3: WocaR-DQN, first setting (informational)
     python gate.py reg        # after stage 4 training + evaluate.py --preset reg: pick the regulariser (hinge_c, kappa)
     python gate.py stage5     # after stage 5 training + evaluate.py --preset gate5: is WocaR-DQN healthy?
+    python gate.py sel        # after stage 7 training + evaluate.py --preset final: does the authors' target fix clean driving?
 
 The verdict is PASS, RETRY (stages 2 and 5 only, once: the gate changes one hyperparameter and the stage is trained again
 into a new folder) or FAIL (stop and report to the user). Decisions go to rev4_params.json, which the other scripts
 read; the printed table is also appended to RUNLOG.md. Exit code: 0 = PASS, 2 = RETRY, 1 = FAIL.
 A gate that has already been decided refuses to run again (--force to recompute, e.g. after fixing a broken evaluation).
+Gate sel is informational and prints CONFIRMED or NOT CONFIRMED (exit code 0 for both); nothing is trained after it.
 Standard library only.
 """
 import argparse
@@ -45,6 +47,8 @@ WORST_Q_MIN = -5.0        # gates 3/5: the worst-case critic must stay bounded (
 REG_CERT_TARGET = 0.90    # reg gate: certified share we aim for (below it the gate still picks, and says so)
 REG_CERT_GAIN = 0.05      # reg gate: the chosen arm must certify at least this much more than the first setting
 REG_CERT_TIE = 0.02       # reg gate: arms this close to the best certified share count as tied (lower clean crash wins)
+SEL_T_MIN = 2.0           # gate sel: Welch t the primary comparison needs. Fixed on 2026-11-19, before the
+                          # confirmatory seeds (rev4.CONFIRM_SEEDS) were trained; do not change it after.
 # gate 5 does not gate WocaR's certified share: its regulariser is weighted by state importance w(s) (train.py), so
 # states with near-tied actions get almost no push and stay uncertified by design (first setting: 6% vs SA-DQN 66%).
 # It checks what WocaR is meant to do instead: few flips (FLIP_SHARE) and no more attack-induced crashes than vanilla.
@@ -72,7 +76,7 @@ def finish(name, verdict, lines, next_step):
     rev4.log(text)
     if next_step.startswith("STOP"):
         rev4.blocked(f"Gate `{name}` failed (table above). {next_step}")
-    sys.exit({"PASS": 0, "NOTED": 0, "RETRY": 2}.get(verdict, 1))
+    sys.exit({"PASS": 0, "NOTED": 0, "CONFIRMED": 0, "NOT CONFIRMED": 0, "RETRY": 2}.get(verdict, 1))
 
 
 def already(params, key, force):
@@ -351,13 +355,75 @@ def stage5(run_dir, params, force):
     finish("stage5", "FAIL", lines, "STOP. WocaR-DQN is not healthy and the one retry is used up. Report this table to the user; do not train anything else.")
 
 
+def sel(run_dir, params, force):
+    """Informational (2026-11-19): does WocaR with the authors' target (the exploratory arm) drive better without attack
+    than WocaR with the paper's target? Primary test on the confirmatory seeds only; the rest is reported, not tested."""
+    rev4.gate5_open(params, "gate sel before gate 5 is open")
+    if params.get("gate_sel") is not None and not force:
+        sys.exit(f"gate already decided: gate_sel={params['gate_sel']} (rev4_params.json). Nothing to do; continue with the runbook.")
+    eps, van, sa, woc, arm = params["epsilon"], params["vanilla_group"], params["sa_group"], params["wocar_group"], rev4.EXPLORATORY_GROUP
+    seeds = rev4.REG_SEEDS + rev4.CONFIRM_SEEDS
+    for s in seeds:
+        log = run_dir / arm / f"model_{s}" / "train.log"
+        tests = report.parse_log(log) if log.is_file() else {}
+        if not tests or max(tests) < rev4.TARGET_FRAMES:
+            sys.exit(f"{arm}/model_{s} has not reached frame {rev4.TARGET_FRAMES:,}; stage 7 training is not finished.")
+    # Same checkpoint rule as evaluate.py (peak of the mean curve after the ramps), now over all six seeds.
+    curve = [p for p in report.mean_curve(report.load_group(run_dir / arm)) if p[0] >= rev4.schedule_end(arm)]
+    peak = max(curve, key=lambda p: p[1])[0]
+    ev = report.load_eval(cache_dir(run_dir, "final"))
+    pl = ev.get((arm, "peak"), {})
+    stale = [s for s in seeds if s not in pl or pl[s]["frame"] != peak]
+    if stale:
+        sys.exit(f"{arm} seeds {stale} are not evaluated at the six-seed peak frame {peak:,}; run "
+                 "`python evaluate.py --preset final --workers 6` first.")
+    per = {g: report.group_metrics(ev[(g, "peak")], eps) for g in (van, sa, woc) if len(ev.get((g, "peak"), {})) == 6}
+    if len(per) < 3:
+        sys.exit(f"the final evaluation of {van}, {sa} and {woc} is missing or incomplete; run the evaluate.py step first.")
+    conf = report.group_metrics({s: pl[s] for s in rev4.CONFIRM_SEEDS}, eps)
+    every = report.group_metrics({s: pl[s] for s in seeds}, eps)
+
+    def row(what, base, other, key):
+        a, b = per[base][key], other[key]
+        t = report.welch_t(a, b)
+        return [what, fmt_pct(mean(a)), fmt_pct(mean(b)), "-" if t is None else f"{t:.1f}"]
+
+    t_primary = report.welch_t(per[woc]["clean_crash"], conf["clean_crash"])
+    confirmed = t_primary is not None and t_primary >= SEL_T_MIN
+    seed_rows = [[s, f"{pl[s]['frame']:,}", fmt_pct(m["clean_crash"]), fmt_pct(m["increase"]), fmt_pct(m["certified"]),
+                  f"{last_worst_q(run_dir / arm / f'model_{s}' / 'train.log'):.2f}", "confirmatory" if s in rev4.CONFIRM_SEEDS else "exploratory"]
+                 for s in seeds for m in [report.seed_metrics(pl[s], eps)]]
+    lines = [f"At the training epsilon {eps} (final evaluation: 300 episodes per seed). `{arm}` is evaluated at frame {peak:,}, "
+             "the peak of its six-seed mean curve.", "",
+             f"**Primary test (rule fixed on 2026-11-19, before seeds {rev4.CONFIRM_SEEDS[0]}-{rev4.CONFIRM_SEEDS[-1]} were trained):** "
+             f"crash without attack of `{arm}` seeds {rev4.CONFIRM_SEEDS[0]}-{rev4.CONFIRM_SEEDS[-1]} against `{woc}` (6 seeds). "
+             f"CONFIRMED if Welch t >= {SEL_T_MIN:g} (positive = the authors' target crashes less).", "",
+             table(["comparison", f"{woc}", f"{arm}", "Welch t"],
+                   [row(f"crash, no attack: seeds {rev4.CONFIRM_SEEDS[0]}-{rev4.CONFIRM_SEEDS[-1]} (primary)", woc, conf, "clean_crash")]), "",
+             "Reported, not tested (all six seeds; seeds 1-2 raised the hypothesis, so these comparisons are not independent of it):", "",
+             table(["comparison", "baseline", f"{arm}", "Welch t (positive = fewer crashes than the baseline)"], [
+                 row(f"crash, no attack vs {woc}", woc, every, "clean_crash"),
+                 row(f"crash, no attack vs {van}", van, every, "clean_crash"),
+                 row(f"crash, gradient attacks vs {van}", van, every, "attack_crash"),
+                 row(f"attack-induced vs {van}", van, every, "increase"),
+                 row(f"crash, gradient attacks vs {sa}", sa, every, "attack_crash"),
+                 row(f"attack-induced vs {sa}", sa, every, "increase")]), "",
+             table(["seed", "frame", "crash, no attack", "attack-induced", "certified", "last worst-Q", "role"], seed_rows)]
+    verdict = "CONFIRMED" if confirmed else "NOT CONFIRMED"
+    params["gate_sel"] = verdict
+    rev4.save_params(params)
+    lines.append(f"\nVerdict: the authors' target {'does' if confirmed else 'does not demonstrably'} reduce WocaR's crashes without "
+                 f"attack (primary t = {'-' if t_primary is None else f'{t_primary:.1f}'}). Informational: nothing is trained after this gate.")
+    finish("sel", verdict, lines, "`python report.py` (runbook step 5).")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("gate", choices=["stage1", "epsilon", "stage2", "stage3", "reg", "stage5"])
+    ap.add_argument("gate", choices=["stage1", "epsilon", "stage2", "stage3", "reg", "stage5", "sel"])
     ap.add_argument("run_dir", type=Path, nargs="?", default=rev4.RUN_ROOT)
     ap.add_argument("--force", action="store_true", help="recompute a gate that is already decided")
     args = ap.parse_args()
-    {"stage1": stage1, "epsilon": epsilon, "stage2": stage2, "stage3": stage3, "reg": reg, "stage5": stage5}[args.gate](args.run_dir.resolve(), rev4.load_params(), args.force)
+    {"stage1": stage1, "epsilon": epsilon, "stage2": stage2, "stage3": stage3, "reg": reg, "stage5": stage5, "sel": sel}[args.gate](args.run_dir.resolve(), rev4.load_params(), args.force)
 
 
 if __name__ == "__main__":

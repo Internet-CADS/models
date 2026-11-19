@@ -252,7 +252,7 @@ def dry_run(runs, args):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--stage", type=int, choices=[1, 2, 3, 4, 5, 6], help="train the runs of this stage (see rev4.py)")
+    ap.add_argument("--stage", type=int, choices=[1, 2, 3, 4, 5, 6, 7], help="train the runs of this stage (see rev4.py)")
     ap.add_argument("--groups", help="manual mode: comma list of group folders (see rev4.GROUPS)")
     ap.add_argument("--seeds", help="manual mode: comma list of seeds/model indices")
     ap.add_argument("--dry-run", action="store_true", help="validate, print commands, launch nothing")
