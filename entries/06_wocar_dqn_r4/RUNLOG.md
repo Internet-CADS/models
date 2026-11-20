@@ -444,3 +444,10 @@ Stage 7 step 0 done: branch rev4-sel, imports, dry run and smoke run ok
 
 ### 2026-11-20 00:06
 Stage 7 / 1c: affinity 0x555 applied to train.py processes
+
+### 2026-11-20 05:09
+Training stage 7: 4/4 runs finished
+- wocar_sel_dqn/model_3: finished reattached to a live run via its log
+- wocar_sel_dqn/model_4: finished reattached to a live run via its log
+- wocar_sel_dqn/model_5: finished reattached to a live run via its log
+- wocar_sel_dqn/model_6: finished reattached to a live run via its log
