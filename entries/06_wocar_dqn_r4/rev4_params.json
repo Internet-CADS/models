@@ -8,6 +8,7 @@
   "gate5_override": "continue with stage 6 and wocar_dqn_reg_b despite the clean-crash FAIL (docs/fix3.md)",
   "gate_eps": "PASS",
   "gate_reg": "PASS",
+  "gate_sel": "CONFIRMED",
   "hinge_c": 0.031,
   "kappa": 0.02,
   "reg_hinge_c": 0.3,

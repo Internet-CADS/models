@@ -451,3 +451,41 @@ Training stage 7: 4/4 runs finished
 - wocar_sel_dqn/model_4: finished reattached to a live run via its log
 - wocar_sel_dqn/model_5: finished reattached to a live run via its log
 - wocar_sel_dqn/model_6: finished reattached to a live run via its log
+
+### 2026-11-20 06:52
+Evaluation preset `final`: 6 jobs done in 102 min (300 episodes, epsilons [0.0, 0.00125, 0.0025, 0.00375, 0.005, 0.0075, 0.01]).
+
+### 2026-11-20 06:52
+**Gate `sel`: CONFIRMED**
+
+At the training epsilon 0.005 (final evaluation: 300 episodes per seed). `wocar_sel_dqn` is evaluated at frame 800,000, the peak of its six-seed mean curve.
+
+**Primary test (rule fixed on 2026-11-19, before seeds 3-6 were trained):** crash without attack of `wocar_sel_dqn` seeds 3-6 against `wocar_dqn_reg_b` (6 seeds). CONFIRMED if Welch t >= 2 (positive = the authors' target crashes less).
+
+| comparison | wocar_dqn_reg_b | wocar_sel_dqn | Welch t |
+|---|---|---|---|
+| crash, no attack: seeds 3-6 (primary) | 24.3% | 13.1% | 3.5 |
+
+Reported, not tested (all six seeds; seeds 1-2 raised the hypothesis, so these comparisons are not independent of it):
+
+| comparison | baseline | wocar_sel_dqn | Welch t (positive = fewer crashes than the baseline) |
+|---|---|---|---|
+| crash, no attack vs wocar_dqn_reg_b | 24.3% | 15.6% | 2.6 |
+| crash, no attack vs vanilla_g090 | 15.4% | 15.6% | -0.1 |
+| crash, gradient attacks vs vanilla_g090 | 50.3% | 40.1% | 1.8 |
+| attack-induced vs vanilla_g090 | 34.8% | 24.5% | 2.7 |
+| crash, gradient attacks vs sa_dqn_c030 | 43.9% | 40.1% | 0.6 |
+| attack-induced vs sa_dqn_c030 | 25.4% | 24.5% | 0.2 |
+
+| seed | frame | crash, no attack | attack-induced | certified | last worst-Q | role |
+|---|---|---|---|---|---|---|
+| 1 | 800,000 | 25.0% | 29.2% | 70.8% | -0.76 | exploratory |
+| 2 | 800,000 | 16.3% | 33.8% | 52.3% | -0.00 | exploratory |
+| 3 | 800,000 | 13.3% | 22.3% | 69.1% | 0.05 | confirmatory |
+| 4 | 800,000 | 7.0% | 14.6% | 40.2% | -0.23 | confirmatory |
+| 5 | 800,000 | 15.7% | 31.3% | 46.2% | 0.40 | confirmatory |
+| 6 | 800,000 | 16.3% | 15.7% | 37.6% | 0.24 | confirmatory |
+
+Verdict: the authors' target does reduce WocaR's crashes without attack (primary t = 3.5). Informational: nothing is trained after this gate.
+
+Next: `python report.py` (runbook step 5).
