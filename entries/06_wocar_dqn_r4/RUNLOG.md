@@ -489,3 +489,7 @@ Reported, not tested (all six seeds; seeds 1-2 raised the hypothesis, so these c
 Verdict: the authors' target does reduce WocaR's crashes without attack (primary t = 3.5). Informational: nothing is trained after this gate.
 
 Next: `python report.py` (runbook step 5).
+
+### 2026-11-20 06:52
+## FINISHED: stage 7 is complete
+Report: artifacts/run_1/report.html. Summary in the chat reply.
